@@ -1,0 +1,57 @@
+{
+  "name": "tga2tpc",
+  "version": "1.2.0",
+  "description": "Convert TGA images to Odyssey engine TPC format",
+  "repository" : "ndixUR/tga2tpc",
+  "main": "main.js",
+  "scripts": {
+    "postinstall": "install-app-deps",
+    "start": "electron . --enable-logging",
+    "dist": "build -mw --x64"
+  },
+  "keywords": [
+    "KotOR",
+    "Odyssey",
+    "TPC",
+    "TGA",
+    "image",
+    "convert"
+  ],
+  "author": "ndix UR",
+  "license": "BSD-2-Clause",
+  "build": {
+    "appId": "tga2tpc",
+    "compression": "maximum",
+    "mac": {
+      "category": "public.app-category.graphics-design"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 110,
+          "y": 150
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": "NSIS",
+      "icon": "build/icon.ico"
+    }
+  },
+  "devDependencies": {
+    "electron": "~1.6.2",
+    "electron-builder": "^19.15.5"
+  },
+  "dependencies": {
+    "bootstrap": "^3.3.7",
+    "dxt-js": "^0.0.2",
+    "jquery": "^3.2.1",
+    "three.js": "^0.77.1"
+  }
+}
