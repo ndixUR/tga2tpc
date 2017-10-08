@@ -1,0 +1,38 @@
+html,body {
+  height: 100%;
+}
+
+body {
+  overflow-y: scroll;
+}
+
+/*
+html>body.container {
+  min-width:100%;
+}
+*/
+
+div.underlay {
+  position:absolute;
+  left:0px;
+  top:0px;
+  width:100%;
+  height:100%;
+}
+
+.drag-hover {
+  border: 0.25em solid rgba(100, 100, 250, 0.5);
+}
+
+div.preview > canvas {
+  vertical-align: top;
+}
+
+ul.settings-menu a {
+}
+ul.settings-menu a.enabled > .glyphicon {
+  visibility: visible;
+}
+ul.settings-menu a > .glyphicon {
+  visibility: hidden;
+}
