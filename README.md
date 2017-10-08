@@ -22,7 +22,7 @@ Uses a slightly modified TGA loader based on three.js example, but returning a b
 * **dxt-js** has special requirements, because the distributed version lacks memory grow support, so you will want to rebuild it. Theoretically there are other workarounds, maybe some that work better, but this is the one I used.
   * must have `emscripten` installed, in-path
   * need an altered `dxt-js/squish/build.sh` file (included), because default script's browser/worker/nodejs context detection replacement doesn't yield correct behavior in electron.
-  * `cp dxtjs-squish-build.sh node_modules/dxt-js/squish/`
+  * `cp dxtjs-squish-build.sh node_modules/dxt-js/squish/build.sh`
   * `cd node_modules/dxt-js/squish/; ./build.sh; cd -;`
 
 ## Build Instructions
