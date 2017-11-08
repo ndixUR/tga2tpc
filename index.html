@@ -31,7 +31,7 @@
         <i class="glyphicon glyphicon-minus"></i>
         All
       </button>
-      <button type="button" class="btn btn-default navbar-btn loader_txi" title="TXI data from file">
+      <button type="button" class="btn btn-default navbar-btn loader_txi" title="TXI data from file" disabled="disabled">
         <i class="glyphicon glyphicon-plus"></i>
         TXI
       </button>
@@ -65,6 +65,9 @@
             <li><a href="#" class="flip_x">Flip Horizontal <i class="glyphicon glyphicon-ok"></i></a></li>
             <li role="separator" class="divider"></li>
             <li><a href="#" class="interp enabled">Bicubic downsampling for mipmaps <i class="glyphicon glyphicon-ok"></i></a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="#" class="txi_use_file yes enabled">Use TXI file for each TGA <i class="glyphicon glyphicon-ok"></i></a></li>
+            <li><a href="#" class="txi_use_file no">Use TXI text for all TGA <i class="glyphicon glyphicon-ok"></i></a></li>
           </ul>
         </li>
       </ul>
@@ -80,7 +83,7 @@
     <div class="row">
       <label class="col-xs-3 text-right">TXI</label>
       <div class="col-xs-9">
-        <textarea class="form-control txi_data"></textarea>
+        <textarea class="form-control txi_data" readonly="readonly"></textarea>
       </div>
     </div>
 

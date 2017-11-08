@@ -115,7 +115,13 @@ function run_queue() {
   queue_state();
   let infile = queue_item.attr('data-filename');
   let outfile = infile.substr(Math.max(infile.lastIndexOf('/'), infile.lastIndexOf('\\')));
-  let txi_data = $('.txi_data').val();
+  // load TXI file if autoloading requested
+  let file_stem = infile.match(/^(.+)\.tga/i);
+  if ($('.txi_use_file.yes.enabled').length &&
+      file_stem && file_stem.length > 1 && file_stem[1] &&
+      require('fs').existsSync(file_stem[1] + '.txi')) {
+    $('.txi_data').val(require('fs').readFileSync(file_stem[1] + '.txi'));
+  }
   //console.log(outfile);
   //console.log(outfile.lastIndexOf('.'));
   outfile = outpath + outfile.substr(0, outfile.lastIndexOf('.')) + '.tpc';
@@ -150,6 +156,11 @@ function run_queue() {
     tpc.export_tpc(
       outfile, texture,
       (err) => {
+        if ($('.txi_use_file.yes.enabled').length) {
+            // TXI autoloading
+            // clear the TXI field after each process
+            $('.txi_data').val('');
+        }
         if (err) {
           queue_item.toggleClass('active alert-info done alert-danger');
           queue_item.append(
@@ -228,7 +239,7 @@ $('button.interp').on('click', (ev) => {
   )
 });
 */
-$('.settings-menu a').not('.pfraw').on('click', (ev) => {
+$('.settings-menu a').not('.pfraw').not('.txi_use_file').on('click', (ev) => {
   $(ev.currentTarget).toggleClass('enabled');
   ev.stopPropagation();
 });
@@ -241,6 +252,29 @@ $('.settings-menu a.pfraw').on('click', (ev) => {
   //if (make_enabled) {
     $(ev.currentTarget).addClass('enabled');
   //}
+  ev.stopPropagation();
+});
+$('.settings-menu a.txi_use_file').on('click', (ev) => {
+  // have some related UI state change, so we actually care about initial state
+  let initial_state = false;
+  if ($('.settings-menu a.txi_use_file.yes.enabled').length) {
+    initial_state = true;
+  }
+  // perform a maybe toggle
+  $('.settings-menu a.txi_use_file').removeClass('enabled');
+  $(ev.currentTarget).addClass('enabled');
+  if (!initial_state &&
+      $('.settings-menu a.txi_use_file.yes.enabled').length) {
+    // turning on TXI auto load files
+    $('.txi_data').val('').attr('readonly', 'readonly');
+    $('button.loader_txi').attr('disabled', 'disabled');
+  } else if(initial_state &&
+            $('.settings-menu a.txi_use_file.no.enabled').length) {
+    // turning on TXI text field
+    $('.txi_data').removeAttr('readonly');
+    $('button.loader_txi').removeAttr('disabled');
+  }
+  ev.preventDefault();
   ev.stopPropagation();
 });
 
@@ -295,7 +329,7 @@ tpc.feedback.on('progress', function(progress) {
       }
     });
     queue_state();
-    if (txi_file) {
+    if (txi_file && $('.settings-menu .txi_use_file.no.enabled').length) {
       // read txi file, put it into txi text area
       $('.txi_data').val(
         require('fs').readFileSync(txi_file)
