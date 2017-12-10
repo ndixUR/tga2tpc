@@ -7,7 +7,7 @@
   "scripts": {
     "postinstall": "install-app-deps",
     "start": "electron . --enable-logging",
-    "dist": "build -mw --x64"
+    "dist": "build -mw --x64 --ia32"
   },
   "keywords": [
     "KotOR",
