@@ -66,16 +66,10 @@ function getDataSize(format, width, height) {
              format == kPixelFormatRGB5) {
     return width * height * 2;
   } else if (format == kPixelFormatDXT1) {
-    // i do not understand the intent of the +3's here ...
-    // it is like they are trying to fill out quads maybe,
-    // but doing straight width & height gives us values that match
-    // vanilla datasize numbers...
-    return Math.max(8, (width / 4) * (height / 4) * 8);
-    //return Math.max(8, ((width + 3) / 4) * ((height + 3) / 4) * 8);
+    return Math.max(8, parseInt((width + 3) / 4) * parseInt((height + 3) / 4) * 8);
   } else if (format == kPixelFormatDXT3 ||
              format == kPixelFormatDXT5) {
-    return Math.max(16, (width / 4) * (height / 4) * 16);
-    //return Math.max(16, ((width + 3) / 4) * ((height + 3) / 4) * 16);
+    return Math.max(16, parseInt((width + 3) / 4) * parseInt((height + 3) / 4) * 16);
   }
   // this is an error, really
   return 0;
