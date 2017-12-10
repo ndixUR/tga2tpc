@@ -24,6 +24,8 @@ Uses a slightly modified TGA loader based on three.js example, but returning a b
   * need an altered `dxt-js/squish/build.sh` file (included), because default script's browser/worker/nodejs context detection replacement doesn't yield correct behavior in electron.
   * `cp dxtjs-squish-build.sh node_modules/dxt-js/squish/build.sh`
   * `cd node_modules/dxt-js/squish/; ./build.sh; cd -;`
+  * need an altered `dxt.js` file (included), because the default library front-end does not free memory.
+  * `cp dxt.fixed.js node_modules/dxt-js/src/dxt.js`
 
 ## Build Instructions
 
