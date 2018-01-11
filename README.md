@@ -54,4 +54,4 @@ If anyone wanted to make it into something bigger & better, I would recommend re
 
 ## License
 
-[BSD-2-Clause](LICENSE)
+[GPL-3.0-or-later](LICENSE)
