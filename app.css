@@ -36,3 +36,26 @@ ul.settings-menu a.enabled > .glyphicon {
 ul.settings-menu a > .glyphicon {
   visibility: hidden;
 }
+
+.alpha.toggle {
+  float: right;
+  opacity: 0.2;
+}
+
+.alpha.toggle:hover {
+  opacity: 0.6;
+}
+
+.queue>.pending .alpha .down,
+.queue>.pending .alpha .up {
+  display: inline-block;
+}
+
+.alpha .down,
+.alpha .up {
+  display: none;
+}
+
+.glyphicon.close {
+  font-size: inherit;
+}

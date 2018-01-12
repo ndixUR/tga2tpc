@@ -120,6 +120,8 @@ function run_queue() {
   let queue_item = $('.queue li.pending').first();
   queue_item.toggleClass('pending active alert-info');
   queue_state();
+  let alphaBlending = parseFloat(queue_item.attr('data-alpha'));
+  //console.log(alphaBlending);
   let infile = queue_item.attr('data-filename');
   let outfile = infile.substr(Math.max(infile.lastIndexOf('/'), infile.lastIndexOf('\\')));
   // load TXI file if autoloading requested
@@ -160,6 +162,7 @@ function run_queue() {
     );
     tpc.settings('txi', $('.txi_data').val());
     tpc.settings('compression', pixel_format);
+    tpc.settings('alphaBlending', alphaBlending);
     tpc.export_tpc(
       outfile, texture,
       (err) => {
@@ -201,14 +204,39 @@ function clear_queue() {
 function enqueue(absfile) {
   let file = absfile.substr(Math.max(absfile.lastIndexOf('/'), absfile.lastIndexOf('\\')) + 1);
   $('.queue').append(
-    `<li data-filename="${absfile}" class="list-group-item file pending">
+    `<li data-filename="${absfile}" data-alpha="1.0" class="list-group-item file pending">
       ${file}
-      <button type="button" class="close">&times;</button>
+      <span class="glyphicon glyphicon-remove close"></span>
+      <span class="glyphicon glyphicon-eye-open alpha toggle"></span>
+      <div class="alpha hide">
+        <span class="glyphicon glyphicon-chevron-left down"></span>
+        <span class="glyphicon glyphicon-chevron-right up"></span>
+        <span style="opacity:1.0">blend 1.0</span>
+      </div>
     </li>`
   );
   $('.queue li').last().find('.close').on('click', (ev) => {
     $(ev.target).closest('li').remove();
     queue_state();
+  });
+  $('.queue li').last().find('.alpha .down').on('mousedown', (ev) => {
+    var a = parseFloat($(ev.target).closest('li').attr('data-alpha'));
+    a = Math.max(a - 0.1, 0.0);
+    //console.log(a);
+    $(ev.target).closest('li').attr('data-alpha', a.toFixed(1));
+    $('.queue li').last().find('.alpha span').last().css('opacity', a.toFixed(1)).text('blend ' + a.toFixed(1));
+    ev.preventDefault();
+  });
+  $('.queue li').last().find('.alpha .up').on('mousedown', (ev) => {
+    var a = parseFloat($(ev.target).closest('li').attr('data-alpha'));
+    a = Math.min(a + 0.1, 1.0);
+    //console.log(a);
+    $(ev.target).closest('li').attr('data-alpha', a.toFixed(1));
+    $('.queue li').last().find('.alpha span').last().css('opacity', a.toFixed(1)).text('blend ' + a.toFixed(1));
+    ev.preventDefault();
+  });
+  $('.queue li').last().find('.alpha.toggle').on('click', (ev) => {
+    $(ev.target).closest('li').find('div.alpha').toggleClass('hide');
   });
 }
 // update UI state for queue
