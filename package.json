@@ -1,6 +1,6 @@
 {
   "name": "tga2tpc",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Convert TGA images to Odyssey engine TPC format",
   "repository" : "ndixUR/tga2tpc",
   "main": "main.js",
