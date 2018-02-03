@@ -220,19 +220,27 @@ function enqueue(absfile) {
     queue_state();
   });
   $('.queue li').last().find('.alpha .down').on('mousedown', (ev) => {
-    var a = parseFloat($(ev.target).closest('li').attr('data-alpha'));
+    var queue_item_el = $(ev.target).closest('li');
+    var a = parseFloat(queue_item_el.attr('data-alpha'));
     a = Math.max(a - 0.1, 0.0);
     //console.log(a);
-    $(ev.target).closest('li').attr('data-alpha', a.toFixed(1));
-    $('.queue li').last().find('.alpha span').last().css('opacity', a.toFixed(1)).text('blend ' + a.toFixed(1));
+    queue_item_el.attr('data-alpha', a.toFixed(1));
+    queue_item_el.find('.alpha span').last().css(
+      'opacity',
+      a.toFixed(1)).text('blend ' + a.toFixed(1)
+    );
     ev.preventDefault();
   });
   $('.queue li').last().find('.alpha .up').on('mousedown', (ev) => {
-    var a = parseFloat($(ev.target).closest('li').attr('data-alpha'));
+    var queue_item_el = $(ev.target).closest('li');
+    var a = parseFloat(queue_item_el.attr('data-alpha'));
     a = Math.min(a + 0.1, 1.0);
     //console.log(a);
-    $(ev.target).closest('li').attr('data-alpha', a.toFixed(1));
-    $('.queue li').last().find('.alpha span').last().css('opacity', a.toFixed(1)).text('blend ' + a.toFixed(1));
+    queue_item_el.attr('data-alpha', a.toFixed(1));
+    queue_item_el.find('.alpha span').last().css(
+      'opacity',
+      a.toFixed(1)).text('blend ' + a.toFixed(1)
+    );
     ev.preventDefault();
   });
   $('.queue li').last().find('.alpha.toggle').on('click', (ev) => {
