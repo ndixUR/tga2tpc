@@ -126,7 +126,9 @@ function run_queue() {
   let outfile = infile.substr(Math.max(infile.lastIndexOf('/'), infile.lastIndexOf('\\')));
   // load TXI file if autoloading requested
   let file_stem = infile.match(/^(.+)\.tga/i);
-  if ($('.txi_use_file.yes.enabled').length &&
+  // retain this, as its value could change during processing
+  let use_txi_file = $('.txi_use_file.yes.enabled').length ? true : false;
+  if (use_txi_file &&
       file_stem && file_stem.length > 1 && file_stem[1] &&
       require('fs').existsSync(file_stem[1] + '.txi')) {
     $('.txi_data').val(require('fs').readFileSync(file_stem[1] + '.txi'));
@@ -166,7 +168,7 @@ function run_queue() {
     tpc.export_tpc(
       outfile, texture,
       (err) => {
-        if ($('.txi_use_file.yes.enabled').length) {
+        if (use_txi_file) {
             // TXI autoloading
             // clear the TXI field after each process
             $('.txi_data').val('');
@@ -187,6 +189,28 @@ function run_queue() {
         run_queue();
       }
     );
+  },
+  () => { true; }, //onProgress
+  (err) => {
+    //onError
+    if (use_txi_file) {
+        // TXI autoloading
+        // clear the TXI field after each process
+        $('.txi_data').val('');
+    }
+    //console.log(err);
+    // three.js gives us a generic ProgressEvent of type error
+    // in error cases, with no specific message, thanks.
+    if (!err.message || !err.detail) {
+      err.message = 'unknown failure';
+      err.detail = `file failed to load: ${infile}`;
+    }
+    queue_item.toggleClass('active alert-info done alert-danger');
+    queue_item.append(
+      `<div title="${err.detail}"><small>failed: ${err.message}</small></div>`
+    );
+    tpc.feedback.emit('progress', 1);
+    run_queue();
   });
 }
 // pause queue after current image finishes
