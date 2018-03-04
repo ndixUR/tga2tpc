@@ -139,7 +139,7 @@ THREE.TGALoader.prototype.parse = function ( buffer ) {
 			default:
                                 throw({
                                   message: 'invalid data',
-                                  detail: 'THREE.TGALoader.parse.tgaCheckHeader: Invalid type " ' + header.image_type + '"'
+                                  detail: 'THREE.TGALoader.parse.tgaCheckHeader: Invalid type: ' + header.image_type
                                 });
 
 		}
@@ -162,7 +162,7 @@ THREE.TGALoader.prototype.parse = function ( buffer ) {
 
                         throw({
                           message:'invalid data',
-                          detail: 'THREE.TGALoader.parse.tgaCheckHeader: Invalid pixel size "' + header.pixel_size + '"'
+                          detail: 'THREE.TGALoader.parse.tgaCheckHeader: Invalid pixel size: ' + header.pixel_size
                         });
 
 		}
