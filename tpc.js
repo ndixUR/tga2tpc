@@ -541,6 +541,13 @@ function export_tpc(filename, texture, cb) {
       write_data(tpc_stream, image, cb);
     });
   });
+  tpc_stream.addListener('error', function(err) {
+    //console.log(err);
+    return cb({
+      message: 'unknown failure',
+      detail: 'Unable to write file for unknown reason.'
+    });
+  });
 }
 
 /**********************
