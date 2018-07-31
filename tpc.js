@@ -284,10 +284,16 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
   let layer_x = image.layerCount > 1 ? image.layerPos[layer - 1].x : 0;
   let layer_y = image.layerCount > 1 ? image.layerPos[layer - 1].y : 0;
   // get the source TGA image's pixel image data
-  let ctx = image.texture.image.getContext('2d');
+  let ctx, pixels;
+  if (image.texture.image && image.texture.mipmaps.length) {
+    pixels = { data: image.texture.mipmaps[0] };
+  } else {
+    ctx = image.texture.image.getContext('2d');
+    pixels = ctx.getImageData(layer_x, layer_y, layer_width, layer_height);
+  }
+
   //let pixout = width * height * 4;
   let mipmap = new Uint8Array(size);
-  let pixels = ctx.getImageData(layer_x, layer_y, layer_width, layer_height);
   //console.log('interpolation', image.interpolation);
   // process the pixel data
   for (let y_iter = 0; y_iter < height; y_iter++) {

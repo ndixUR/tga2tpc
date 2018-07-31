@@ -22,7 +22,26 @@ THREE.TGALoader.prototype.load = function ( url, onLoad, onProgress, onError ) {
 	loader.load( url, function ( buffer ) {
 
                 try {
-                  texture.image = scope.parse( buffer );
+                  const tgaData = scope.parse(buffer);
+                  // store pixel data in unpremultiplied state to prevent damage
+                  texture.mipmaps.push(tgaData.pixelData);
+
+                  // construct preview canvas
+                  var canvas = document.createElement('canvas');
+                  canvas.width = tgaData.header.width;
+                  canvas.height = tgaData.header.height;
+
+                  var context = canvas.getContext( '2d' );
+                  var imageData = context.createImageData( canvas.width, canvas.height );
+                  imageData.data.set(tgaData.pixelData);
+                  context.putImageData( imageData, 0, 0 );
+                  texture.image = canvas;
+
+                  // record pixel depth
+                  texture.pixelDepth = tgaData.pixelDepth;
+
+                  //console.log(texture);
+                  //texture.image = scope.parse( buffer );
                 } catch (err) {
                   //console.log(err);
                   if (onError) {
@@ -538,21 +557,16 @@ THREE.TGALoader.prototype.parse = function ( buffer ) {
 
 	}
 
-	var canvas = document.createElement( 'canvas' );
-	canvas.width = header.width;
-	canvas.height = header.height;
-
-	var context = canvas.getContext( '2d' );
-	var imageData = context.createImageData( header.width, header.height );
+        const pixelData = new Uint8ClampedArray(header.width * header.height * 4);
 
 	var result = tgaParse( use_rle, use_pal, header, offset, content );
-	var rgbaData = getTgaRGBA( imageData.data, header.width, header.height, result.pixel_data, result.palettes );
+	//var rgbaData = getTgaRGBA( imageData.data, header.width, header.height, result.pixel_data, result.palettes );
+	var rgbaData = getTgaRGBA( pixelData, header.width, header.height, result.pixel_data, result.palettes );
 
-	context.putImageData( imageData, 0, 0 );
-
-        // tga2tpc CUSTOM:
-        canvas.setAttribute('pixelDepth', header.pixel_size);
-
-	return canvas;
+        return {
+          pixelData,
+          pixelDepth: header.pixel_size,
+          header,
+        };
 
 };
