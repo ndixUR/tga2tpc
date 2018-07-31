@@ -17,6 +17,12 @@ let ldr  = new THREE.TGALoader();
 let path = require('path');
 let tpc  = require(path.normalize(__dirname + '/tpc.js'));
 
+const app_info = require(path.normalize(__dirname + '/package.json'));
+// set application version string
+(function() {
+  $('h1 .version').text('v' + app_info.version);
+})();
+
 // native file open/save dialog support
 const {dialog} = require('electron').remote;
 
