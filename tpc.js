@@ -250,6 +250,23 @@ function write_data(stream, image, cb) {
   write_mipmap(stream, image, width, height, size, scale, filepos, layer, cb);
 }
 
+// emulate the canvas 2d drawing context getImageData function,
+// providing a linearized data buffer containing an arbitrary rectangle
+function getImageData(data, width, x, y, w, h) {
+  const imageData = new Uint8ClampedArray(w * h * 4);
+  //console.log(imageData.byteLength);
+  //console.log(`width ${width} x ${x} y ${y} w ${w} h ${h}`);
+  let imgData_offset = 0;
+  for (let i = 0; i < h; i++) {
+    const row_begin = (x + (i * width)) * 4;
+    const row_end = row_begin + (w * 4);
+    //console.log(i + ': ' + row_begin + ' - ' + row_end + ' @' + imgData_offset);
+    imageData.set(data.subarray(row_begin, row_end), imgData_offset);
+    imgData_offset += row_end - row_begin;
+  }
+  return imageData;
+}
+
 function write_mipmap(stream, image, width, height, size, scale, filepos, layer, cb) {
   if (width < 1) { // || (image.width / width) > image.mipMapCount) {
     // we write mipmaps until we reach 1 pixel
@@ -286,7 +303,10 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
   // get the source TGA image's pixel image data
   let ctx, pixels;
   if (image.texture.image && image.texture.mipmaps.length) {
-    pixels = { data: image.texture.mipmaps[0] };
+    pixels = { data: getImageData(
+      image.texture.mipmaps[0], image.width,
+      layer_x, layer_y, layer_width, layer_height
+    ) };
   } else {
     ctx = image.texture.image.getContext('2d');
     pixels = ctx.getImageData(layer_x, layer_y, layer_width, layer_height);
@@ -320,6 +340,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       //let in_index  = ((((image.height - 1) - y_scaled) * image.width) + x_scaled) * 4;
       let in_index  = ((((layer_height - 1) - y_scaled) * layer_width) + x_scaled) * 4;
       let int_scaler = Math.max(1, scale / 4);
+      //console.log(in_index + ' => ' + out_index);
       for (let i = 0; i < 4; i++) {
         // i = r, g, b, a pixel data
         let datum = pixels.data[in_index + i];
