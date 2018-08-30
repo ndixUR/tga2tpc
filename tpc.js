@@ -289,6 +289,8 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
 
   let compressed_size = getDataSize(image.formatRaw, width, height);
 
+  const mipmap_index = (Math.log(scale) / Math.log(2));
+
   console.log(
     'layer ' + layer + ' mipmap ' + (Math.log(scale) / Math.log(2)) + ': ' +
     filepos + '-' + (filepos + compressed_size) + ' (' + compressed_size + ') ' +
@@ -300,14 +302,32 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
   let layer_height = image.layerCount > 1 ? image.layerDim.height : image.height;
   let layer_x = image.layerCount > 1 ? image.layerPos[layer - 1].x : 0;
   let layer_y = image.layerCount > 1 ? image.layerPos[layer - 1].y : 0;
+  const orig_layer_dim = { w: layer_width, h: layer_height };
   // get the source TGA image's pixel image data
   let ctx, pixels;
-  if (image.texture.image && image.texture.mipmaps.length) {
+  if (image.texture.mipmaps && image.texture.mipmaps.length &&
+      mipmap_index > 0 &&
+      image.texture.mipmaps.length >= mipmap_index) {
+    // use the nearest detail level to compute this mipmap
+    const source_index = mipmap_index - 1;
+    const source_scale = scale / 2;
+    layer_width /= source_scale;
+    layer_height /= source_scale;
+    pixels = { data: getImageData(
+      image.texture.mipmaps[source_index], image.width / source_scale,
+      layer_x / source_scale, layer_y / source_scale,
+      //layer_width / source_scale, layer_height / source_scale
+      layer_width, layer_height
+    ) };
+  } else if (image.texture.mipmaps && image.texture.mipmaps.length) {
+    // use the mipmap 0 unscaled
     pixels = { data: getImageData(
       image.texture.mipmaps[0], image.width,
       layer_x, layer_y, layer_width, layer_height
     ) };
   } else {
+    // legacy/terrible technique, reading pixels from a canvas,
+    // resulting in bad, premultiplied data
     ctx = image.texture.image.getContext('2d');
     pixels = ctx.getImageData(layer_x, layer_y, layer_width, layer_height);
   }
@@ -329,6 +349,8 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       }
       let x_scaled = x * scale;
       let y_scaled = y * scale;
+      x_scaled = x * Math.min(2, scale);
+      y_scaled = y * Math.min(2, scale);
       //let pixel = ctx.getImageData(x, y, 1, 1);
       //console.log((height - 1));
       //console.log((height - 1) - y);
@@ -339,8 +361,17 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       let out_index = ((y_iter * width) + x_iter) * 4;
       //let in_index  = ((((image.height - 1) - y_scaled) * image.width) + x_scaled) * 4;
       let in_index  = ((((layer_height - 1) - y_scaled) * layer_width) + x_scaled) * 4;
-      let int_scaler = Math.max(1, scale / 4);
-      //console.log(in_index + ' => ' + out_index);
+      // we are doing a y-inversion here based on the assumption that data
+      // comes from TGA files whose origin is inverse to our output format's
+      // when we are deriving from the previous mipmaps,
+      // this y-inversion has already been done, so skip it
+      //TODO move this y-inversion into a normalization on TGA load
+      if (mipmap_index > 1) {
+        in_index = ((y_scaled * layer_width) + x_scaled) * 4;
+      }
+      //let int_scaler = Math.max(1, scale / 4);
+      // console.log(in_index + ' => ' + out_index);
+      const int_scaler = 1;
       for (let i = 0; i < 4; i++) {
         // i = r, g, b, a pixel data
         let datum = pixels.data[in_index + i];
@@ -408,6 +439,14 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       }
     }
   }
+
+  // if using image.texture.mipmaps, add the computed data to image.texture,
+  // so that closest detail level can be used in each lower level detail mipmap
+  if (image && image.texture && image.texture.mipmaps &&
+      image.texture.mipmaps.length &&
+      image.texture.mipmaps.length < (mipmap_index + 1)) {
+    image.texture.mipmaps.push(mipmap);
+  }
   //XXX UI STUFF
   // put image data into this mipmap's full-sized canvas
   octx.putImageData(img, 0, 0);
@@ -423,7 +462,8 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     mmapcv,
     0, 0, width, height,
     //0, ((2 * image.height) - (2 * height)),
-    0, ((2 * layer_height) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / layer_height),
+    //0, ((2 * layer_height) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / layer_height),
+    0, ((2 * orig_layer_dim.h) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / orig_layer_dim.h),
     Math.min(width, $('.preview canvas').get(0).offsetWidth / scale),
     Math.min(height, $('.preview canvas').get(0).offsetWidth / scale)
   );
