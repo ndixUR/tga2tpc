@@ -435,7 +435,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
           }
         }
         mipmap[out_index + i] = datum;
-        img.data[out_index + i] = datum;
+        //img.data[out_index + i] = datum;
       }
     }
   }
@@ -449,6 +449,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
   }
   //XXX UI STUFF
   // put image data into this mipmap's full-sized canvas
+  img.data.set(mipmap);
   octx.putImageData(img, 0, 0);
   // get preview canvas context
   let draw_ctx = $('.preview canvas').get(0).getContext('2d');
