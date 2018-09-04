@@ -313,23 +313,23 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     const source_scale = scale / 2;
     layer_width /= source_scale;
     layer_height /= source_scale;
-    pixels = { data: getImageData(
+    pixels = getImageData(
       image.texture.mipmaps[source_index], image.width / source_scale,
       layer_x / source_scale, layer_y / source_scale,
       //layer_width / source_scale, layer_height / source_scale
       layer_width, layer_height
-    ) };
+    );
   } else if (image.texture.mipmaps && image.texture.mipmaps.length) {
     // use the mipmap 0 unscaled
-    pixels = { data: getImageData(
+    pixels = getImageData(
       image.texture.mipmaps[0], image.width,
       layer_x, layer_y, layer_width, layer_height
-    ) };
+    );
   } else {
     // legacy/terrible technique, reading pixels from a canvas,
     // resulting in bad, premultiplied data
     ctx = image.texture.image.getContext('2d');
-    pixels = ctx.getImageData(layer_x, layer_y, layer_width, layer_height);
+    pixels = ctx.getImageData(layer_x, layer_y, layer_width, layer_height).data;
   }
 
   //let pixout = width * height * 4;
@@ -374,7 +374,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       const int_scaler = 1;
       for (let i = 0; i < 4; i++) {
         // i = r, g, b, a pixel data
-        let datum = pixels.data[in_index + i];
+        let datum = pixels[in_index + i];
         if (image.interpolation &&
             scale > 1 && y > 0 && x > 0 &&
             y_scaled < layer_height - 1 &&
@@ -406,25 +406,25 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
           let p = [
             [
               // 0, 0
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[0] * 4) +
                 (y_pts[0] * 4 * layer_width)
               ],
               // 0, 1
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[0] * 4) +
                 (y_pts[1] * 4 * layer_width)
               ],
               // 0, 2
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[0] * 4) +
                 (y_pts[2] * 4 * layer_width)
               ],
               // 0, 3
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[0] * 4) +
                 (y_pts[3] * 4 * layer_width)
@@ -432,25 +432,25 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
             ],
             [
               // 1, 0
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[1] * 4) +
                 (y_pts[0] * 4 * layer_width)
               ],
               // 1, 1
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[1] * 4) +
                 (y_pts[1] * 4 * layer_width)
               ],
               // 1, 2
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[1] * 4) +
                 (y_pts[2] * 4 * layer_width)
               ],
               // 1, 3
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[1] * 4) +
                 (y_pts[3] * 4 * layer_width)
@@ -458,25 +458,25 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
             ],
             [
               // 2, 0
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[2] * 4) +
                 (y_pts[0] * 4 * layer_width)
               ],
               // 2, 1
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[2] * 4) +
                 (y_pts[1] * 4 * layer_width)
               ],
               // 2, 2
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[2] * 4) +
                 (y_pts[2] * 4 * layer_width)
               ],
               // 2, 3
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[2] * 4) +
                 (y_pts[3] * 4 * layer_width)
@@ -484,25 +484,25 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
             ],
             [
               // 3, 0
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[3] * 4) +
                 (y_pts[0] * 4 * layer_width)
               ],
               // 3, 1
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[3] * 4) +
                 (y_pts[1] * 4 * layer_width)
               ],
               // 3, 2
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[3] * 4) +
                 (y_pts[2] * 4 * layer_width)
               ],
               // 3, 3
-              pixels.data[
+              pixels[
                 (in_index + i) +
                 (x_pts[3] * 4) +
                 (y_pts[3] * 4 * layer_width)
@@ -522,7 +522,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
                 (in_index + i) + (xpt * 4 * int_scaler) + (ypt * 4 * int_scaler * image.width)
               );
               * /
-              p[col][row] = pixels.data[
+              p[col][row] = pixels[
                 (in_index + i) +
                 (xpt * 4 * int_scaler) +
                 (ypt * 4 * int_scaler * layer_width)
