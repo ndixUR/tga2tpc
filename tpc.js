@@ -94,6 +94,26 @@ function compressionRequested(format) {
   );
 }
 
+// make sure the image structure is returned to a clean (enough) state
+function cleanImage() {
+  image.texture = null;
+  image.txi     = '';
+  image.width   = 0;
+  image.height  = 0;
+  image.size    = 0;
+
+  image.layerPos        = [];
+  image.layerCount      = 1;
+  image.layerDim        = { width: 0, height: 0 };
+
+  if (image.layers) {
+    for (let idx in image.layers) {
+      delete image.layers[idx].mipmaps;
+      delete image.layers[idx];
+    }
+  }
+}
+
 // given a texture and TXI string, prepare the TPC header & general info
 function prepare(texture) {
   // texture is data type from three.js tgaloader
@@ -119,6 +139,7 @@ function prepare(texture) {
 
   image.mipMapCount = (Math.log(image.width) / Math.log(2)) + 1;
   image.layerCount = 1;
+  image.layers = [];
 
   if (image.txi && image.txi.match(/^\s*proceduretype\s+cycle/im)) {
     // animated texture, 1 layer per frame,
@@ -212,10 +233,234 @@ function prepare(texture) {
       }
     }
   }
+  // move pixel data from texture buffer to layers structure
+  if (image.layerPos && image.layerPos.length) {
+    for (let pos of image.layerPos) {
+      image.layers.push({
+        mipmaps: [
+          getImageData(
+            image.texture.mipmaps[0], image.width, pos.x, pos.y,
+            image.layerDim.width, image.layerDim.height
+          )
+        ],
+        width: image.layerDim.width,
+        height: image.layerDim.height,
+      });
+    }
+  } else {
+    image.layers.push({
+      mipmaps: [
+        image.texture.mipmaps[0]
+      ],
+      width: image.width,
+      height: image.height,
+    });
+  }
+  // generate pixel data for lower detail level mipmaps
+  generateDetailLevels(image.layers);
+
   // n power of 2? n && (n & (n - 1)) === 0;
   //console.log(image);
   return image;
 };
+
+// create mipmap pixel data for all layers
+function generateDetailLevels(layers) {
+  layers = layers || [];
+  const bytes_per_pixel = 4;
+  for (let layer of layers) {
+    const num_detail_levels = (
+      Math.log(Math.min(layer.width, layer.height)) / Math.log(2)
+    ) + 1;
+    for (let mip_idx = 1; mip_idx < num_detail_levels; mip_idx++) {
+      const pixels = layer.mipmaps[mip_idx - 1];
+      const width = layer.width / Math.pow(2, mip_idx);
+      const height = layer.height / Math.pow(2, mip_idx);
+      const parent_width = width * 2;
+      const parent_height = height * 2;
+      layer.mipmaps.push(new Uint8ClampedArray(width * height * bytes_per_pixel));
+      for (let y_iter = 0; y_iter < height; y_iter++) {
+        for (let x_iter = 0; x_iter < width; x_iter++) {
+          const x_scaled = x_iter * 2;
+          const y_scaled = y_iter * 2;
+          const in_index = ((y_scaled * parent_width) + x_scaled) * bytes_per_pixel;
+          const out_index = ((y_iter * width) + x_iter) * bytes_per_pixel;
+          for (let i = 0; i < bytes_per_pixel; i++) {
+            let datum = pixels[in_index + i];
+            if (image.interpolation &&
+                y_iter > 0 && x_iter > 0 &&
+                y_iter < height - 1 &&
+                x_iter < width - 1 &&
+                (i != 3 || image.alphaFound)) {
+              // determine pixel offsets for use in bicubic interpolation
+              // in_index has pixel (red channel) under consideration
+              // so, in_index + i = datum under consideration,
+              // '-2,-2' = (in_index + i) + (-2 * 4 * int_scaler) + (-2 * 4 * int_scaler * image.width)
+              let x_pts = [ -1, 0, 1, 2 ];
+              if (x_iter > (width / 2) - 1) {
+                x_pts = [ -2, -1, 0, 1 ];
+              } else if (x_iter == (width / 2) - 1) {
+                x_pts = [ -2, -1, 1, 2 ];
+              }
+              let y_pts = [ -1, 0, 1, 2 ];
+              if (y_iter > (height / 2) - 1) {
+                y_pts = [ -2, -1, 0, 1 ];
+              } else if (y_iter == (height / 2) - 1) {
+                y_pts = [ -2, -1, 1, 2 ];
+              }
+
+              // this is an unrolled 4x4 dual nested loop, foul business,
+              // but yields 3.5x performance improvement
+              let p = [
+                [
+                  // 0, 0
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[0] * 4) +
+                    (y_pts[0] * 4 * parent_width)
+                  ],
+                  // 0, 1
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[0] * 4) +
+                    (y_pts[1] * 4 * parent_width)
+                  ],
+                  // 0, 2
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[0] * 4) +
+                    (y_pts[2] * 4 * parent_width)
+                  ],
+                  // 0, 3
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[0] * 4) +
+                    (y_pts[3] * 4 * parent_width)
+                  ],
+                ],
+                [
+                  // 1, 0
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[1] * 4) +
+                    (y_pts[0] * 4 * parent_width)
+                  ],
+                  // 1, 1
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[1] * 4) +
+                    (y_pts[1] * 4 * parent_width)
+                  ],
+                  // 1, 2
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[1] * 4) +
+                    (y_pts[2] * 4 * parent_width)
+                  ],
+                  // 1, 3
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[1] * 4) +
+                    (y_pts[3] * 4 * parent_width)
+                  ],
+                ],
+                [
+                  // 2, 0
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[2] * 4) +
+                    (y_pts[0] * 4 * parent_width)
+                  ],
+                  // 2, 1
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[2] * 4) +
+                    (y_pts[1] * 4 * parent_width)
+                  ],
+                  // 2, 2
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[2] * 4) +
+                    (y_pts[2] * 4 * parent_width)
+                  ],
+                  // 2, 3
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[2] * 4) +
+                    (y_pts[3] * 4 * parent_width)
+                  ],
+                ],
+                [
+                  // 3, 0
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[3] * 4) +
+                    (y_pts[0] * 4 * parent_width)
+                  ],
+                  // 3, 1
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[3] * 4) +
+                    (y_pts[1] * 4 * parent_width)
+                  ],
+                  // 3, 2
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[3] * 4) +
+                    (y_pts[2] * 4 * parent_width)
+                  ],
+                  // 3, 3
+                  pixels[
+                    (in_index + i) +
+                    (x_pts[3] * 4) +
+                    (y_pts[3] * 4 * parent_width)
+                  ],
+                ]
+              ];
+              /*
+              let p = [ [], [], [], [] ];
+              for (let col in x_pts) {
+                let xpt = x_pts[col];
+                for (let row in y_pts) {
+                  let ypt = y_pts[row];
+                  / *
+                  console.log(
+                    x_scaled, y_scaled, xpt, ypt,
+                    int_scaler, i, in_index, '=>',
+                    (in_index + i) + (xpt * 4 * int_scaler) + (ypt * 4 * int_scaler * image.width)
+                  );
+                  * /
+                  p[col][row] = pixels[
+                    (in_index + i) +
+                    (xpt * 4 * int_scaler) +
+                    (ypt * 4 * int_scaler * layer_width)
+                  ];
+                }
+              }
+              */
+              // constrain result to 0-255 range
+              datum = Math.round(
+                Math.max(0, Math.min(255,
+                  bicubic_interpolation(p, 0.5, 0.5)
+                ))
+              );
+            }
+            layer.mipmaps[mip_idx][out_index + i] = datum;
+          }
+        }
+      }
+      /*
+      // this code adds canvases for every mipmap to head of html document
+      let mmapcv = $(`<canvas class="orig" width="${width}" height="${height}"></canvas>`).get(0);
+      const octx = mmapcv.getContext('2d');
+      const id = octx.createImageData(width, height);
+      id.data.set(layer.mipmaps[mip_idx]);
+      octx.putImageData(id,0,0);
+      $('body').prepend(mmapcv);
+      */
+    }
+  }
+}
 
 /*
  * Asynchronous write flow:
@@ -253,14 +498,17 @@ function write_data(stream, image, cb) {
 // emulate the canvas 2d drawing context getImageData function,
 // providing a linearized data buffer containing an arbitrary rectangle
 function getImageData(data, width, x, y, w, h) {
+  // short circuit this special case to prevent needless copy
+  if (w * h * 4 == data.byteLength) {
+    return data;
+  }
   const imageData = new Uint8ClampedArray(w * h * 4);
   //console.log(imageData.byteLength);
   //console.log(`width ${width} x ${x} y ${y} w ${w} h ${h}`);
   let imgData_offset = 0;
-  for (let i = 0; i < h; i++) {
+  for (let i = y; i < y + h; i++) {
     const row_begin = (x + (i * width)) * 4;
     const row_end = row_begin + (w * 4);
-    //console.log(i + ': ' + row_begin + ' - ' + row_end + ' @' + imgData_offset);
     imageData.set(data.subarray(row_begin, row_end), imgData_offset);
     imgData_offset += row_end - row_begin;
   }
@@ -272,6 +520,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     // we write mipmaps until we reach 1 pixel
     // the next/final step is writing the txi data
     if (layer < image.layerCount) {
+      // reenter write_mipmap here if more layers must be written
       return write_mipmap(
         stream, image,
         image.layerDim.width, image.layerDim.height,
@@ -283,6 +532,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     return write_txi(stream, image, cb);
   }
   //XXX UI STUFF
+  // create off-screen canvas in size of this mipmap, will be input for preview
   let mmapcv = $(`<canvas width="${width}" height="${height}"></canvas>`).get(0);
   let octx = mmapcv.getContext('2d');
   let img = octx.createImageData(width, height);
@@ -297,291 +547,92 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     '(' + width + ',' + height + ')'
   );
 
-  // set layer width/height
-  let layer_width = image.layerCount > 1 ? image.layerDim.width : image.width;
-  let layer_height = image.layerCount > 1 ? image.layerDim.height : image.height;
-  let layer_x = image.layerCount > 1 ? image.layerPos[layer - 1].x : 0;
-  let layer_y = image.layerCount > 1 ? image.layerPos[layer - 1].y : 0;
-  const orig_layer_dim = { w: layer_width, h: layer_height };
-  // get the source TGA image's pixel image data
-  let ctx, pixels;
-  if (image.texture.mipmaps && image.texture.mipmaps.length &&
-      mipmap_index > 0 &&
-      image.texture.mipmaps.length >= mipmap_index) {
-    // use the nearest detail level to compute this mipmap
-    const source_index = mipmap_index - 1;
-    const source_scale = scale / 2;
-    layer_width /= source_scale;
-    layer_height /= source_scale;
-    pixels = getImageData(
-      image.texture.mipmaps[source_index], image.width / source_scale,
-      layer_x / source_scale, layer_y / source_scale,
-      //layer_width / source_scale, layer_height / source_scale
-      layer_width, layer_height
-    );
-  } else if (image.texture.mipmaps && image.texture.mipmaps.length) {
-    // use the mipmap 0 unscaled
-    pixels = getImageData(
-      image.texture.mipmaps[0], image.width,
-      layer_x, layer_y, layer_width, layer_height
-    );
-  } else {
-    // legacy/terrible technique, reading pixels from a canvas,
-    // resulting in bad, premultiplied data
-    ctx = image.texture.image.getContext('2d');
-    pixels = ctx.getImageData(layer_x, layer_y, layer_width, layer_height).data;
-  }
+  // grab the appropriate pre-formatted pixel buffer
+  let mipmap = image.layers[layer - 1].mipmaps[mipmap_index];
 
-  //let pixout = width * height * 4;
-  let mipmap = new Uint8Array(size);
-  //console.log('interpolation', image.interpolation);
-  // process the pixel data
-  for (let y_iter = 0; y_iter < height; y_iter++) {
-    let y = y_iter;
-    if (image.flip_y) {
-      y = (height - 1) - y_iter;
-      //console.log('flip y ' + y_iter + ' => ' + y);
-    }
-    for (let x_iter = 0; x_iter < width; x_iter++) {
-      let x = x_iter;
+  // process visual flip horizontal/vertical now so it shows in the preview
+  if (image.flip_y || image.flip_x) {
+    const temp = new Uint8ClampedArray(mipmap.byteLength);
+    let temp_offset = 0;
+    for (let y_iter = height - 1; y_iter >= 0; y_iter--) {
+      let y = y_iter;
+      if (!image.flip_y) {
+        y = (height - 1) - y_iter;
+      }
+      const row_begin = (y * width) * 4;
+      const row_end = row_begin + (width * 4);
       if (image.flip_x) {
-        x = (width - 1) - x_iter;
-      }
-      let x_scaled = x * scale;
-      let y_scaled = y * scale;
-      x_scaled = x * Math.min(2, scale);
-      y_scaled = y * Math.min(2, scale);
-      //let pixel = ctx.getImageData(x, y, 1, 1);
-      //console.log((height - 1));
-      //console.log((height - 1) - y);
-      //console.log(((height - 1) - y) * width);
-      //let in_index = ((((height - 1) - y_scaled) * width) + x_scaled) * 4;
-      //let out_index = ((y * width) + x) * 4;
-      //let out_index = ((y * width) + x) * 4;
-      let out_index = ((y_iter * width) + x_iter) * 4;
-      //let in_index  = ((((image.height - 1) - y_scaled) * image.width) + x_scaled) * 4;
-      let in_index  = ((((layer_height - 1) - y_scaled) * layer_width) + x_scaled) * 4;
-      // we are doing a y-inversion here based on the assumption that data
-      // comes from TGA files whose origin is inverse to our output format's
-      // when we are deriving from the previous mipmaps,
-      // this y-inversion has already been done, so skip it
-      //TODO move this y-inversion into a normalization on TGA load
-      if (mipmap_index > 1) {
-        in_index = ((y_scaled * layer_width) + x_scaled) * 4;
-      }
-      //let int_scaler = Math.max(1, scale / 4);
-      // console.log(in_index + ' => ' + out_index);
-      const int_scaler = 1;
-      for (let i = 0; i < 4; i++) {
-        // i = r, g, b, a pixel data
-        let datum = pixels[in_index + i];
-        if (image.interpolation &&
-            scale > 1 && y > 0 && x > 0 &&
-            y_scaled < layer_height - 1 &&
-            x_scaled < layer_width - 1 &&
-            (i != 3 || image.alphaFound)) {
-          // slightly different approach,
-          // if x < width/2, use -1, 0, 1, 2
-          // if x >= width/2 use -2, -1, 0, 1
-          // if x < width/2, use -1, 0, 1, 2
-          // if x >= width/2 use -2, -1, 0, 1
-          let x_pts = [ -1, 0, 1, 2 ];
-          if (x_scaled > (layer_width - 1) / 2) {
-            x_pts = [ -2, -1, 0, 1 ];
-          } else if (x_scaled == (layer_width - 1) / 2) {
-            x_pts = [ -2, -1, 1, 2 ];
-          }
-          let y_pts = [ -1, 0, 1, 2 ];
-          if (y_scaled > (layer_height - 1) / 2) {
-            y_pts = [ -2, -1, 0, 1 ];
-          } else if (y_scaled == (layer_height - 1) / 2) {
-            y_pts = [ -2, -1, 1, 2 ];
-          }
-          // pixel datum = (y * width) + x * 4 + i
-          // in_index has pixel (red channel) under consideration
-          // so, in_index + i = datum under consideration, '-2,-2' = (in_index + i) + (-2 * 4 * int_scaler) + (-2 * 4 * int_scaler * image.width)
-          //if (width < 256) {
-          // this is an unrolled 4x4 dual nested loop, foul business,
-          // but yields 3.5x performance improvement
-          let p = [
-            [
-              // 0, 0
-              pixels[
-                (in_index + i) +
-                (x_pts[0] * 4) +
-                (y_pts[0] * 4 * layer_width)
-              ],
-              // 0, 1
-              pixels[
-                (in_index + i) +
-                (x_pts[0] * 4) +
-                (y_pts[1] * 4 * layer_width)
-              ],
-              // 0, 2
-              pixels[
-                (in_index + i) +
-                (x_pts[0] * 4) +
-                (y_pts[2] * 4 * layer_width)
-              ],
-              // 0, 3
-              pixels[
-                (in_index + i) +
-                (x_pts[0] * 4) +
-                (y_pts[3] * 4 * layer_width)
-              ],
-            ],
-            [
-              // 1, 0
-              pixels[
-                (in_index + i) +
-                (x_pts[1] * 4) +
-                (y_pts[0] * 4 * layer_width)
-              ],
-              // 1, 1
-              pixels[
-                (in_index + i) +
-                (x_pts[1] * 4) +
-                (y_pts[1] * 4 * layer_width)
-              ],
-              // 1, 2
-              pixels[
-                (in_index + i) +
-                (x_pts[1] * 4) +
-                (y_pts[2] * 4 * layer_width)
-              ],
-              // 1, 3
-              pixels[
-                (in_index + i) +
-                (x_pts[1] * 4) +
-                (y_pts[3] * 4 * layer_width)
-              ],
-            ],
-            [
-              // 2, 0
-              pixels[
-                (in_index + i) +
-                (x_pts[2] * 4) +
-                (y_pts[0] * 4 * layer_width)
-              ],
-              // 2, 1
-              pixels[
-                (in_index + i) +
-                (x_pts[2] * 4) +
-                (y_pts[1] * 4 * layer_width)
-              ],
-              // 2, 2
-              pixels[
-                (in_index + i) +
-                (x_pts[2] * 4) +
-                (y_pts[2] * 4 * layer_width)
-              ],
-              // 2, 3
-              pixels[
-                (in_index + i) +
-                (x_pts[2] * 4) +
-                (y_pts[3] * 4 * layer_width)
-              ],
-            ],
-            [
-              // 3, 0
-              pixels[
-                (in_index + i) +
-                (x_pts[3] * 4) +
-                (y_pts[0] * 4 * layer_width)
-              ],
-              // 3, 1
-              pixels[
-                (in_index + i) +
-                (x_pts[3] * 4) +
-                (y_pts[1] * 4 * layer_width)
-              ],
-              // 3, 2
-              pixels[
-                (in_index + i) +
-                (x_pts[3] * 4) +
-                (y_pts[2] * 4 * layer_width)
-              ],
-              // 3, 3
-              pixels[
-                (in_index + i) +
-                (x_pts[3] * 4) +
-                (y_pts[3] * 4 * layer_width)
-              ],
-            ]
-          ];
-          /*
-          let p = [ [], [], [], [] ];
-          for (let col in x_pts) {
-            let xpt = x_pts[col];
-            for (let row in y_pts) {
-              let ypt = y_pts[row];
-              / *
-              console.log(
-                x_scaled, y_scaled, xpt, ypt,
-                int_scaler, i, in_index, '=>',
-                (in_index + i) + (xpt * 4 * int_scaler) + (ypt * 4 * int_scaler * image.width)
-              );
-              * /
-              p[col][row] = pixels[
-                (in_index + i) +
-                (xpt * 4 * int_scaler) +
-                (ypt * 4 * int_scaler * layer_width)
-              ];
-            }
-          }
-          */
-          //XXX debug only value
-          let original = datum;
-          // constrain result to 0-255 range
-          datum = Math.round(
-            Math.max(0, Math.min(255,
-              bicubic_interpolation(p, 0.5, 0.5)
-            ))
-          );
-          if (datum < 0) { 
-            p.push(original);
-            p.push(datum);
-            console.log(p);
-          }
+        for (let x = width - 1; x >= 0; x--) {
+          const pixel_begin = row_begin + (x * 4);
+          temp.set(mipmap.subarray(pixel_begin, pixel_begin + 4), temp_offset);
+          temp_offset += 4;
         }
-        mipmap[out_index + i] = datum;
-        //img.data[out_index + i] = datum;
+      } else {
+        temp.set(mipmap.subarray(row_begin, row_end), temp_offset);
+        temp_offset += row_end - row_begin;
       }
     }
+    mipmap = temp;
   }
 
-  // if using image.texture.mipmaps, add the computed data to image.texture,
-  // so that closest detail level can be used in each lower level detail mipmap
-  if (image && image.texture && image.texture.mipmaps &&
-      image.texture.mipmaps.length &&
-      image.texture.mipmaps.length < (mipmap_index + 1)) {
-    image.texture.mipmaps.push(mipmap);
-  }
-  //XXX UI STUFF
-  // put image data into this mipmap's full-sized canvas
+  // draw the mipmap buffer to full-size offscreen canvas
   img.data.set(mipmap);
   octx.putImageData(img, 0, 0);
-  // get preview canvas context
+
+  // draw the off-screen canvas image to preview canvas,
+  // appropriately scaled and positioned
   let draw_ctx = $('.preview canvas').get(0).getContext('2d');
   draw_ctx.imageSmoothingEnabled = false;
-  // deprecated:
-  //draw_ctx.webkitImageSmoothingEnabled = false;
-  //console.log(((2 * image.height) - (2 * height)));
-  //console.log(((2 * image.height) - (2 * height)) * ($('.preview canvas').get(0).offsetWidth / image.height));
-  // draw the full-sized mipmap image, appropriately scaled and positioned
   draw_ctx.drawImage(
     mmapcv,
     0, 0, width, height,
     //0, ((2 * image.height) - (2 * height)),
     //0, ((2 * layer_height) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / layer_height),
-    0, ((2 * orig_layer_dim.h) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / orig_layer_dim.h),
+    0, ((2 * image.layers[layer - 1].height) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / image.layers[0].height),
     Math.min(width, $('.preview canvas').get(0).offsetWidth / scale),
     Math.min(height, $('.preview canvas').get(0).offsetWidth / scale)
   );
 
+  // at this point, all mipmap buffers are in html canvas coordinate system,
+  // which is origin in upper left, game wants opengl-convention bottom left,
+  // so we do another copy row swap here,
+  // favoring code readability and correctness over performance
+  const temp = new Uint8ClampedArray(mipmap.byteLength);
+  let temp_offset = 0;
+  for (let y = height - 1; y >= 0; y--) {
+    const row_begin = (y * width) * 4;
+    const row_end = row_begin + (width * 4);
+    //console.log(`${temp.byteLength} ${row_begin} - ${row_end} @${temp_offset}`);
+    temp.set(mipmap.subarray(row_begin, row_end), temp_offset);
+    temp_offset += row_end - row_begin;
+  }
+  mipmap = temp;
+
+  // at this point, all mipmap buffers are RGBA,
+  // if the user is requesting a 24-bit uncompressed format,
+  // strip alpha bytes now (DXT1 compression expects RGBA input buffer)
+  if (!image.alphaFound && !compressionRequested(image.formatRaw)) {
+    const temp2 = new Uint8ClampedArray((mipmap.byteLength / 4) * 3);
+    temp_offset = 0;
+    for (let y = 0; y < height; y++) {
+      const row_begin = (y * width) * 4;
+      console.log(`${row_begin} @${temp_offset}`);
+      for (let x = 0; x < width; x++) {
+        // start position is based on 4-byte offset
+        const pixel_begin = row_begin + (x * 4);
+        // only copy 3 bytes
+        temp2.set(mipmap.subarray(pixel_begin, pixel_begin + 3), temp_offset);
+        temp_offset += 3;
+      }
+    }
+    //console.log(`size change: ${mipmap.byteLength} ${temp2.byteLength}`);
+    mipmap = temp2;
+  }
+
   let img_buf;
   if (compressionRequested(image.formatRaw)) {
-    let compression_flags = dxt.flags.ColourIterativeClusterFit | dxt.flags.ColourMetricPerceptual;
+    let compression_flags = dxt.flags.ColourIterativeClusterFit |
+                            dxt.flags.ColourMetricPerceptual;
     if (image.formatRaw == kPixelFormatDXT1) {
       compression_flags |= dxt.flags.DXT1;
     } else if (image.formatRaw == kPixelFormatDXT3) {
@@ -640,6 +691,7 @@ function write_txi(stream, image, cb) {
   if (!image || !image.txi || !image.txi.length) {
     feedback.emit('progress', 1);
     stream.end();
+    cleanImage();
     if (cb) return cb();
     return;
   }
@@ -652,6 +704,7 @@ function write_txi(stream, image, cb) {
     feedback.emit('progress', 1);
     // final success, callback
     stream.end();
+    cleanImage();
     if (cb) return cb();
     return;
   });
