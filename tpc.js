@@ -137,7 +137,9 @@ function prepare(texture) {
     image.dataSize = image.fullImageDataSize;
   }
 
-  image.mipMapCount = (Math.log(image.width) / Math.log(2)) + 1;
+  image.mipMapCount = (
+    Math.log(Math.min(image.width, image.height)
+  ) / Math.log(2)) + 1;
   image.layerCount = 1;
   image.layers = [];
 
@@ -516,7 +518,7 @@ function getImageData(data, width, x, y, w, h) {
 }
 
 function write_mipmap(stream, image, width, height, size, scale, filepos, layer, cb) {
-  if (width < 1) { // || (image.width / width) > image.mipMapCount) {
+  if (width < 1 || height < 1) { // || (image.width / width) > image.mipMapCount) {
     // we write mipmaps until we reach 1 pixel
     // the next/final step is writing the txi data
     if (layer < image.layerCount) {
