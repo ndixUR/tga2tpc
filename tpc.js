@@ -556,28 +556,47 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
   let mipmap = image.layers[layer - 1].mipmaps[mipmap_index];
 
   // process visual flip horizontal/vertical now so it shows in the preview
+  // use buffers and double swaps to avoid iterating over every pixel
   if (image.flip_y || image.flip_x) {
-    const temp = new Uint8ClampedArray(mipmap.byteLength);
-    let temp_offset = 0;
-    for (let y_iter = height - 1; y_iter >= 0; y_iter--) {
-      let y = y_iter;
-      if (!image.flip_y) {
-        y = (height - 1) - y_iter;
-      }
-      const row_begin = (y * width) * 4;
-      const row_end = row_begin + (width * 4);
+    const row_buffer = new Uint8ClampedArray(width * 4);
+    for (let src_y = 0; src_y < height / 2; src_y++) {
+      const tgt_y = (height - 1) - src_y;
+      const tgt_offset = tgt_y * row_buffer.byteLength;
+      const src_offset = src_y * row_buffer.byteLength;
       if (image.flip_x) {
-        for (let x = width - 1; x >= 0; x--) {
-          const pixel_begin = row_begin + (x * 4);
-          temp.set(mipmap.subarray(pixel_begin, pixel_begin + 4), temp_offset);
-          temp_offset += 4;
+        const pixel_buffer = new Uint8ClampedArray(4);
+        for (let src_x = 0; src_x < width / 2; src_x++) {
+          const tgt_x = (width - 1) - src_x;
+          if (src_x == tgt_x) {
+            break;
+          }
+          const tgt1_xoffset = src_offset + (tgt_x * 4);
+          const src1_xoffset = src_offset + (src_x * 4);
+          const tgt2_xoffset = tgt_offset + (tgt_x * 4);
+          const src2_xoffset = tgt_offset + (src_x * 4);
+          // write target pixel to buffer
+          pixel_buffer.set(mipmap.subarray(tgt1_xoffset, tgt1_xoffset + 4));
+          // write source pixel to target location
+          mipmap.set(mipmap.subarray(src1_xoffset, src1_xoffset + 4), tgt1_xoffset);
+          // write buffer to source location
+          mipmap.set(pixel_buffer, src1_xoffset);
+          // write target pixel to buffer
+          pixel_buffer.set(mipmap.subarray(tgt2_xoffset, tgt2_xoffset + 4));
+          // write source pixel to target location
+          mipmap.set(mipmap.subarray(src2_xoffset, src2_xoffset + 4), tgt2_xoffset);
+          // write buffer to source location
+          mipmap.set(pixel_buffer, src2_xoffset);
         }
-      } else {
-        temp.set(mipmap.subarray(row_begin, row_end), temp_offset);
-        temp_offset += row_end - row_begin;
+      }
+      if (image.flip_y && src_y < tgt_y) {
+        // write target row to buffer
+        row_buffer.set(mipmap.subarray(tgt_offset, tgt_offset + row_buffer.byteLength));
+        // write source row to target location
+        mipmap.set(mipmap.subarray(src_offset, src_offset + row_buffer.byteLength), tgt_offset);
+        // write buffer to source location
+        mipmap.set(row_buffer, src_offset);
       }
     }
-    mipmap = temp;
   }
 
   // draw the mipmap buffer to full-size offscreen canvas
@@ -603,18 +622,22 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
 
   // at this point, all mipmap buffers are in html canvas coordinate system,
   // which is origin in upper left, game wants opengl-convention bottom left,
-  // so we do another copy row swap here,
-  // favoring code readability and correctness over performance
-  const temp = new Uint8ClampedArray(mipmap.byteLength);
-  let temp_offset = 0;
-  for (let y = height - 1; y >= 0; y--) {
-    const row_begin = (y * width) * 4;
-    const row_end = row_begin + (width * 4);
-    //console.log(`${temp.byteLength} ${row_begin} - ${row_end} @${temp_offset}`);
-    temp.set(mipmap.subarray(row_begin, row_end), temp_offset);
-    temp_offset += row_end - row_begin;
+  // so we do another row swap here using row buffer to avoid full image copy
+  const row_buffer = new Uint8ClampedArray(width * 4);
+  for (let src_y = 0; src_y < height / 2; src_y++) {
+    const tgt_y = (height - 1) - src_y;
+    if (src_y == tgt_y) {
+      break;
+    }
+    const tgt_offset = tgt_y * row_buffer.byteLength;
+    const src_offset = src_y * row_buffer.byteLength;
+    // write target row to buffer
+    row_buffer.set(mipmap.subarray(tgt_offset, tgt_offset + row_buffer.byteLength));
+    // write source row to target location
+    mipmap.set(mipmap.subarray(src_offset, src_offset + row_buffer.byteLength), tgt_offset);
+    // write buffer to source location
+    mipmap.set(row_buffer, src_offset);
   }
-  mipmap = temp;
 
   // at this point, all mipmap buffers are RGBA,
   // if the user is requesting a 24-bit uncompressed format,
