@@ -138,7 +138,7 @@ function prepare(texture) {
   }
 
   image.mipMapCount = (
-    Math.log(Math.min(image.width, image.height)
+    Math.log(Math.max(image.width, image.height)
   ) / Math.log(2)) + 1;
   image.layerCount = 1;
   image.layers = [];
@@ -183,7 +183,7 @@ function prepare(texture) {
       }
       */
       image.dataSize = 0;
-      while (w >= 1) {
+      while (w >= 1 || h >= 1) {
         image.dataSize += getDataSize(image.formatRaw, w, h);
         w /= 2;
         h /= 2;
@@ -272,12 +272,12 @@ function generateDetailLevels(layers) {
   const bytes_per_pixel = 4;
   for (let layer of layers) {
     const num_detail_levels = (
-      Math.log(Math.min(layer.width, layer.height)) / Math.log(2)
+      Math.log(Math.max(layer.width, layer.height)) / Math.log(2)
     ) + 1;
     for (let mip_idx = 1; mip_idx < num_detail_levels; mip_idx++) {
       const pixels = layer.mipmaps[mip_idx - 1];
-      const width = layer.width / Math.pow(2, mip_idx);
-      const height = layer.height / Math.pow(2, mip_idx);
+      const width = Math.max(layer.width / Math.pow(2, mip_idx), 1);
+      const height = Math.max(layer.height / Math.pow(2, mip_idx), 1);
       const parent_width = width * 2;
       const parent_height = height * 2;
       layer.mipmaps.push(new Uint8ClampedArray(width * height * bytes_per_pixel));
@@ -518,8 +518,8 @@ function getImageData(data, width, x, y, w, h) {
 }
 
 function write_mipmap(stream, image, width, height, size, scale, filepos, layer, cb) {
-  if (width < 1 || height < 1) { // || (image.width / width) > image.mipMapCount) {
-    // we write mipmaps until we reach 1 pixel
+  if (width < 1 && height < 1) { // || (image.width / width) > image.mipMapCount) {
+    // we write mipmaps until we reach 1 pixel in both dimensions
     // the next/final step is writing the txi data
     if (layer < image.layerCount) {
       // reenter write_mipmap here if more layers must be written
@@ -533,6 +533,9 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     }
     return write_txi(stream, image, cb);
   }
+  width = Math.max(width, 1);
+  height = Math.max(height, 1);
+
   //XXX UI STUFF
   // create off-screen canvas in size of this mipmap, will be input for preview
   let mmapcv = $(`<canvas width="${width}" height="${height}"></canvas>`).get(0);
