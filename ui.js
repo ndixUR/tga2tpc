@@ -139,6 +139,25 @@ function run_queue() {
       require('fs').existsSync(file_stem[1] + '.txi')) {
     $('.txi_data').val(require('fs').readFileSync(file_stem[1] + '.txi'));
   }
+  let use_txi_alphablending = $('.txi_alphablending.enabled').length ? true : false;
+  if (use_txi_alphablending && $('.txi_data').val().length) {
+    let txi_val = $('.txi_data').val();
+    const matches = txi_val.match(
+      /^\s*#\s*alphablending\s+([.0-9]+)/im
+    );
+    if (matches) {
+      alphaBlending = Number.parseFloat(matches[1]);
+      // update the GUI also
+      queue_item.attr('data-alpha', alphaBlending);
+      queue_item.find('.alpha span').last().css(
+        'opacity', alphaBlending
+      ).text('blend ' + alphaBlending);
+    }
+    // strip the alphablending out of TXI string
+    $('.txi_data').val(
+      txi_val.replace(/^\s*#\s*alphablending.+$/gim, '')
+    );
+  }
   //console.log(outfile);
   //console.log(outfile.lastIndexOf('.'));
   outfile = outpath + outfile.substr(0, outfile.lastIndexOf('.')) + '.tpc';
