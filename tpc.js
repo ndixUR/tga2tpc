@@ -478,8 +478,8 @@ function write_data(stream, image, cb) {
   //XXX UI STUFF
   //let cbound = [ $('.preview').get(0).offsetWidth, $('.preview').get(0).offsetWidth ];
   //console.log($('.preview').get(0));
-  let cw = Math.min(image.width, $('.preview').get(0).offsetWidth);
-  let cbound = [ cw, cw * 2 ];
+  let visual_scale = Math.min(1, $('.preview').get(0).offsetWidth / image.width);
+  let cbound = [ image.width * visual_scale, image.height * visual_scale * 2 ];
   //let cbound = [ Math.min(image.width, $('.preview').get(0).offsetWidth), $('.preview').get(0).offsetWidth * 2 ];
   $('.preview').prepend(`<canvas width="${cbound[0]}" height="${cbound[1]}"></canvas>`);
   //$('.preview').prepend(`<canvas width="${image.width}" height="${image.height}"></canvas>`);
@@ -588,14 +588,17 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
   // appropriately scaled and positioned
   let draw_ctx = $('.preview canvas').get(0).getContext('2d');
   draw_ctx.imageSmoothingEnabled = false;
+  const visual_scale = Math.min(1, $('.preview canvas').get(0).offsetWidth / image.layers[0].width);
   draw_ctx.drawImage(
     mmapcv,
     0, 0, width, height,
+    0, (2 * image.layers[layer - 1].height * visual_scale) - (2 * height * visual_scale),
+    width * visual_scale, height * visual_scale
     //0, ((2 * image.height) - (2 * height)),
     //0, ((2 * layer_height) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / layer_height),
-    0, ((2 * image.layers[layer - 1].height) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / image.layers[0].height),
-    Math.min(width, $('.preview canvas').get(0).offsetWidth / scale),
-    Math.min(height, $('.preview canvas').get(0).offsetWidth / scale)
+    //0, ((2 * image.layers[layer - 1].height) - (2 * height)) * Math.min(1, $('.preview canvas').get(0).offsetWidth / image.layers[0].height),
+    //Math.min(width, $('.preview canvas').get(0).offsetWidth / scale),
+    //Math.min(height, $('.preview canvas').get(0).offsetWidth / scale)
   );
 
   // at this point, all mipmap buffers are in html canvas coordinate system,
