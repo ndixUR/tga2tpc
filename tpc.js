@@ -509,11 +509,16 @@ function write_data(stream, image, cb) {
       scale   = 1,
       layer   = 1,
       filepos = 128;
+  if (image.layerCount > 1) {
+    width  = image.layerDim.width;
+    height = image.layerDim.height;
+    size   = width * height * 4;
+  }
   //XXX UI STUFF
   //let cbound = [ $('.preview').get(0).offsetWidth, $('.preview').get(0).offsetWidth ];
   //console.log($('.preview').get(0));
-  let visual_scale = Math.min(1, $('.preview').get(0).offsetWidth / image.width);
-  let cbound = [ image.width * visual_scale, image.height * visual_scale * 2 ];
+  let visual_scale = Math.min(1, $('.preview').get(0).offsetWidth / width);
+  let cbound = [ width * visual_scale, height * visual_scale * 2 ];
   //let cbound = [ Math.min(image.width, $('.preview').get(0).offsetWidth), $('.preview').get(0).offsetWidth * 2 ];
   $('.preview').prepend(`<canvas width="${cbound[0]}" height="${cbound[1]}"></canvas>`);
   //$('.preview').prepend(`<canvas width="${image.width}" height="${image.height}"></canvas>`);
@@ -522,11 +527,6 @@ function write_data(stream, image, cb) {
   ctx.scale($('.preview').get(0).offsetWidth / image.width,
             $('.preview').get(0).offsetWidth / image.width);
   */
-  if (image.layerCount > 1) {
-    width  = image.layerDim.width;
-    height = image.layerDim.height;
-    size   = width * height * 4;
-  }
   //console.log($('.preview').get(0).offsetWidth / image.width);
   write_mipmap(stream, image, width, height, size, scale, filepos, layer, cb);
 }
