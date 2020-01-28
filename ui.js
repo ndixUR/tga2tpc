@@ -147,7 +147,7 @@ function run_queue() {
   ldr.load(infile, (texture) => {
     //texture.image.getContext('2d').scale(0.5, 0.5);
     //$('.preview').empty().append(texture.image);
-    let pixel_format = 'none'; // uncompressed
+    let pixel_format = 'auto'; // automatic
     let pfsetting = $('.settings-menu a.pfraw.enabled');
     if (pfsetting.hasClass('dxt1')) {
       pixel_format = 'dxt1';
@@ -155,6 +155,8 @@ function run_queue() {
       pixel_format = 'dxt3';
     } else if(pfsetting.hasClass('dxt5')) {
       pixel_format = 'dxt5';
+    } else if(pfsetting.hasClass('rgba8')) {
+      pixel_format = 'none'; // uncompressed
     }
     tpc.settings(
       'flip_x',

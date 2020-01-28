@@ -22,18 +22,21 @@ const EventEmitter = require('events');
 const $ = require('jquery');
 
 const
+kEncodingNull         = 0,
 kEncodingGray         = 1,
 kEncodingRGB          = 2,
 kEncodingRGBA         = 4,
 kEncodingSwizzledBGRA = 12;
 
 const
+kPixelFormatR    = 'GL_RED',
 kPixelFormatRGB  = 'GL_RGB',
 kPixelFormatRGBA = 'GL_RGBA',
 kPixelFormatBGR  = 'GL_BGR',
 kPixelFormatBGRA = 'GL_BGRA';
 
 const
+kPixelFormatR8     = 'GL_R8',
 kPixelFormatRGBA8  = 'GL_RGBA8',
 kPixelFormatRGB8   = 'GL_RGB8',
 kPixelFormatRGB5A1 = 'GL_RGB5_A1',
@@ -71,6 +74,8 @@ let feedback = new EventEmitter();
 function getDataSize(format, width, height) {
   if (format == kPixelFormatRGB8) {
     return width * height * 3;
+  } else if (format == kPixelFormatR8) {
+    return width * height;
   } else if (format == kPixelFormatRGBA8) {
     return width * height * 4;
   } else if (format == kPixelFormatRGB5A1 ||
@@ -129,17 +134,46 @@ function prepare(texture) {
     image.alphaFound = true;
   }
 
+  if (image.encoding == kEncodingNull) {
+    // Resolve automatic compression selection using vanilla compression rules
+    if (image.txi &&
+        (image.txi.match(/^\s*isbumpmap\s+[1TYty]/im) &&
+         image.txi.match(/^\s*compresstexture\s+[0FNfn]/im)) &&
+        !image.txi.match(/^\s*proceduretype/im) &&
+        texture.pixelDepth >= 24) {
+      // normal maps and those with compresstexture 0 set (unless procedural)
+      // other vanilla uncompressed textures often mipmap 0 and small size,
+      // but we can't make an auto-rule based around that
+      settings('compression', 'none');
+    } else if (texture.pixelDepth < 24) {
+      // 8-bit TGA, assume grayscale bumpmap
+      settings('compression', 'grey');
+    } else if (texture.pixelDepth > 24) {
+      // 32-bit TGA, assume regular alpha-channel texture
+      settings('compression', 'dxt5');
+    } else {
+      // 24-bit TGA, assume regular solid alpha texture
+      settings('compression', 'dxt1');
+    }
+  }
+
+  image.mipMapCount = (
+    Math.log(Math.max(image.width, image.height)
+  ) / Math.log(2)) + 1;
+  if (image.encoding == kEncodingGray) {
+    image.mipMapCount = 1;
+  }
+
   image.fullImageDataSize = getDataSize(image.formatRaw, image.width, image.height);
   //image.size = image.fullImageDataSize;
   image.dataSize = 0;
   if (compressionRequested(image.formatRaw)) {
     //image.dataSize = getDataSize(image.formatRaw, image.width, image.height);
     image.dataSize = image.fullImageDataSize;
+  } else if (image.encoding == kEncodingGray) {
+    image.dataSize = image.fullImageDataSize;
   }
 
-  image.mipMapCount = (
-    Math.log(Math.max(image.width, image.height)
-  ) / Math.log(2)) + 1;
   image.layerCount = 1;
   image.layers = [];
 
@@ -643,7 +677,11 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
   // if the user is requesting a 24-bit uncompressed format,
   // strip alpha bytes now (DXT1 compression expects RGBA input buffer)
   if (!image.alphaFound && !compressionRequested(image.formatRaw)) {
-    const temp2 = new Uint8ClampedArray((mipmap.byteLength / 4) * 3);
+    let pixel_bytes = 3;
+    if (image.encoding == kEncodingGray) {
+      pixel_bytes = 1;
+    }
+    const temp2 = new Uint8ClampedArray((mipmap.byteLength / 4) * pixel_bytes);
     temp_offset = 0;
     for (let y = 0; y < height; y++) {
       const row_begin = (y * width) * 4;
@@ -651,9 +689,9 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       for (let x = 0; x < width; x++) {
         // start position is based on 4-byte offset
         const pixel_begin = row_begin + (x * 4);
-        // only copy 3 bytes
-        temp2.set(mipmap.subarray(pixel_begin, pixel_begin + 3), temp_offset);
-        temp_offset += 3;
+        // only copy `pixel_bytes` number of bytes
+        temp2.set(mipmap.subarray(pixel_begin, pixel_begin + pixel_bytes), temp_offset);
+        temp_offset += pixel_bytes;
       }
     }
     //console.log(`size change: ${mipmap.byteLength} ${temp2.byteLength}`);
@@ -710,6 +748,11 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     width   /= 2;
     height  /= 2;
     size     = width * height * 4;
+    //XXX Hack to short-circuit detail level generation for grayscale images
+    if (image.encoding == kEncodingGray) {
+      width = 0;
+      height = 0;
+    }
     //console.log(scale, width, height, size, filepos);
     // proceed to next mipmap, allow UI update w/ immediate timeout
     setTimeout(function() {
@@ -846,12 +889,18 @@ function settings(key, value) {
   }
   if (key == 'compression') {
     // this is a special composite setting with possible values:
-    // none, dxt1, dxt3, dxt5
+    // auto, none, dxt1, dxt3, dxt5
     if (value == 'none') {
       image.dataSize = 0;
       image.encoding = kEncodingRGBA;
       image.format = kPixelFormatRGBA;
       image.formatRaw = kPixelFormatRGBA8;
+    } else if (value == 'auto') {
+      image.encoding = kEncodingNull;
+    } else if (value == 'grey') {
+      image.encoding = kEncodingGray;
+      image.format = kPixelFormatR;
+      image.formatRaw = kPixelFormatR8;
     } else if (value == 'dxt1') {
       image.encoding = kEncodingRGB;
       image.format = kPixelFormatBGR;
