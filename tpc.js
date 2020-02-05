@@ -310,15 +310,19 @@ function generateDetailLevels(layers) {
     ) + 1;
     for (let mip_idx = 1; mip_idx < num_detail_levels; mip_idx++) {
       const pixels = layer.mipmaps[mip_idx - 1];
-      const width = Math.max(layer.width / Math.pow(2, mip_idx), 1);
-      const height = Math.max(layer.height / Math.pow(2, mip_idx), 1);
-      const parent_width = width * 2;
-      const parent_height = height * 2;
+      const width = Math.floor(Math.max(layer.width / Math.pow(2, mip_idx), 1));
+      const height = Math.floor(Math.max(layer.height / Math.pow(2, mip_idx), 1));
+      const parent_width = Math.floor(Math.max(
+        layer.width / Math.pow(2, mip_idx - 1), 1
+      ));
+      const parent_height = Math.floor(Math.max(
+        layer.height / Math.pow(2, mip_idx - 1), 1
+      ));
       layer.mipmaps.push(new Uint8ClampedArray(width * height * bytes_per_pixel));
       for (let y_iter = 0; y_iter < height; y_iter++) {
         for (let x_iter = 0; x_iter < width; x_iter++) {
-          const x_scaled = x_iter * 2;
-          const y_scaled = y_iter * 2;
+          const x_scaled = Math.floor(x_iter * (parent_width / width));
+          const y_scaled = Math.floor(y_iter * (parent_height / height));
           const in_index = ((y_scaled * parent_width) + x_scaled) * bytes_per_pixel;
           const out_index = ((y_iter * width) + x_iter) * bytes_per_pixel;
           for (let i = 0; i < bytes_per_pixel; i++) {
@@ -567,8 +571,8 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     }
     return write_txi(stream, image, cb);
   }
-  width = Math.max(width, 1);
-  height = Math.max(height, 1);
+  width = Math.floor(Math.max(width, 1));
+  height = Math.floor(Math.max(height, 1));
 
   //XXX UI STUFF
   // create off-screen canvas in size of this mipmap, will be input for preview
@@ -747,6 +751,8 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     scale   *= 2;
     width   /= 2;
     height  /= 2;
+    width = Math.floor(width);
+    height = Math.floor(height);
     size     = width * height * 4;
     //XXX Hack to short-circuit detail level generation for grayscale images
     if (image.encoding == kEncodingGray) {
