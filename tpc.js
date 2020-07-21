@@ -111,6 +111,8 @@ function cleanImage() {
   image.layerCount      = 1;
   image.layerDim        = { width: 0, height: 0 };
 
+  image.stat = {};
+
   if (image.layers) {
     for (let idx in image.layers) {
       delete image.layers[idx].mipmaps;
@@ -129,12 +131,15 @@ function prepare(texture) {
   //console.log(texture);
   //console.log(texture.pixelDepth);
 
+  image.stat = {};
+
   image.alphaFound = false;
   if (texture.pixelDepth > 24) {
     image.alphaFound = true;
   }
 
-  if (image.encoding == kEncodingNull) {
+  const use_mode_automatic = (image.encoding == kEncodingNull);
+  if (use_mode_automatic) {
     // Resolve automatic compression selection using vanilla compression rules
     if (image.txi &&
         (image.txi.match(/^\s*isbumpmap\s+[1TYty]/im) &&
@@ -268,6 +273,29 @@ function prepare(texture) {
         }};
       }
     }
+  } else {
+    // non-power of 2 width, this is an error
+    if (compressionRequested(image.formatRaw) &&
+        (image.width && (image.width & (image.width - 1)) ||
+         image.height && (image.height & (image.height - 1)))) {
+      if (use_mode_automatic) {
+        // force raw/uncompressed mode for invalid image size
+        settings('compression', 'none');
+        image.stat.warnings = image.stat.warnings || [];
+        image.stat.warnings.push({
+          message: 'warning: invalid input image',
+          detail: 'Compression requires power of 2 for width and height, ' +
+                  `${image.width}px x ${image.height}px is not valid. ` +
+                  'This image was encoded uncompressed!'
+        });
+      } else {
+        return {error: {
+          message: 'invalid input image',
+          detail:  `Invalid input image size: ${image.width}px x ${image.height}px, ` +
+                   'width and height must be power of 2 for compression.'
+        }};
+      }
+    }
   }
   // move pixel data from texture buffer to layers structure
   if (image.layerPos && image.layerPos.length) {
@@ -294,6 +322,27 @@ function prepare(texture) {
   }
   // generate pixel data for lower detail level mipmaps
   generateDetailLevels(image.layers);
+
+  // save output format to status
+  image.stat = image.stat || {};
+  switch(image.formatRaw) {
+    case kPixelFormatDXT1:
+      image.stat.format = 'DXT1';
+      break;
+    case kPixelFormatDXT5:
+      image.stat.format = 'DXT5';
+      break;
+    case kPixelFormatRGBA8:
+    case kPixelFormatRGB8:
+    case kPixelFormatR8:
+      image.stat.format = 'Raw';
+      /*
+      image.stat.format = '32bpp';
+      image.stat.format = '24bpp';
+      image.stat.format = '8bpp';
+      */
+      break;
+  }
 
   // n power of 2? n && (n & (n - 1)) === 0;
   //console.log(image);
@@ -781,13 +830,18 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
 }
 
 function write_txi(stream, image, cb) {
+  let image_status = null;
+  if (image && image.stat) {
+    image_status = image.stat;
+  }
   if (!image || !image.txi || !image.txi.length) {
     feedback.emit('progress', 1);
     stream.end();
     cleanImage();
-    if (cb) return cb();
+    if (cb) return cb(null, image_status);
     return;
   }
+  image_status.txi = true;
   // vanilla tpc uses windows line endings, so replicate that
   image.txi = image.txi.trim().replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
   // add trailing carriage return/newline
@@ -798,7 +852,7 @@ function write_txi(stream, image, cb) {
     // final success, callback
     stream.end();
     cleanImage();
-    if (cb) return cb();
+    if (cb) return cb(null, image_status);
     return;
   });
 }

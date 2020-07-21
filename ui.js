@@ -194,7 +194,7 @@ function run_queue() {
     tpc.settings('alphaBlending', alphaBlending);
     tpc.export_tpc(
       outfile, texture,
-      (err) => {
+      (err, stat) => {
         if (use_txi_file) {
             // TXI autoloading
             // clear the TXI field after each process
@@ -207,10 +207,27 @@ function run_queue() {
           );
           tpc.feedback.emit('progress', 1);
         } else {
-          queue_item.toggleClass('active alert-info done alert-success');
+          let format = '';
+          if (stat && stat.format) {
+            format = `${stat.format}${stat.txi ? '+TXI' : ''} `;
+          }
+          queue_item.toggleClass('active alert-info done');
+          if (stat && stat.warnings && stat.warnings.length) {
+            queue_item.toggleClass('alert-warning');
+            queue_item.append(
+              `<div title="` +
+              stat.warnings.map((w) => w.detail).join("\n") +
+              `"><small>` +
+              `<span class="glyphicon glyphicon-warning-sign"></span> ` +
+              stat.warnings.map((w) => w.message).join('<br/>') +
+              `</small></div>`
+            );
+          } else {
+            queue_item.toggleClass('alert-success');
+          }
           let t1 = process.hrtime(t0);
           queue_item.append(
-            `<div><small>completed in ${(t1[0] + (t1[1] / NS_PER_SEC)).toFixed(4)}s</small></div>`
+            `<div><small>${format}completed in ${(t1[0] + (t1[1] / NS_PER_SEC)).toFixed(4)}s</small></div>`
           );
         }
         run_queue();
