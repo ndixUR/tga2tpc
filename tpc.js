@@ -273,6 +273,10 @@ function prepare(texture) {
         }};
       }
     }
+    // recompute mipmap count for cubemap based on layer dimension
+    image.mipMapCount = (
+      Math.log(Math.max(image.layerDim.width, image.layerDim.height)
+    ) / Math.log(2)) + 1;
   } else {
     // non-power of 2 width, this is an error
     if (compressionRequested(image.formatRaw) &&
