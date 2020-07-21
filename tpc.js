@@ -326,27 +326,40 @@ function generateDetailLevels(layers) {
           const in_index = ((y_scaled * parent_width) + x_scaled) * bytes_per_pixel;
           const out_index = ((y_iter * width) + x_iter) * bytes_per_pixel;
           for (let i = 0; i < bytes_per_pixel; i++) {
-            let datum = pixels[in_index + i];
+            // basic case, bilinear interpolation,
+            // (average of 2x2 grid from next mipmap up)
+            let datum = (
+              pixels[in_index + i] +
+              pixels[(in_index + bytes_per_pixel) + i] +
+              pixels[(in_index + (parent_width * bytes_per_pixel)) + i] +
+              pixels[(in_index + bytes_per_pixel + (parent_width * bytes_per_pixel)) + i]
+            ) * 0.25;
+
+            // advanced case, bicubic interpolation,
+            // (complex derivation of 4x4 grid from next mipmap up)
             if (image.interpolation &&
-                y_iter > 0 && x_iter > 0 &&
-                y_iter < height - 1 &&
-                x_iter < width - 1 &&
                 (i != 3 || image.alphaFound)) {
               // determine pixel offsets for use in bicubic interpolation
               // in_index has pixel (red channel) under consideration
               // so, in_index + i = datum under consideration,
               // '-2,-2' = (in_index + i) + (-2 * 4 * int_scaler) + (-2 * 4 * int_scaler * image.width)
-              let x_pts = [ -1, 0, 1, 2 ];
-              if (x_iter > (width / 2) - 1) {
-                x_pts = [ -2, -1, 0, 1 ];
-              } else if (x_iter == (width / 2) - 1) {
-                x_pts = [ -2, -1, 1, 2 ];
+
+              // determine grid points to use,
+              // asymmetrical because our x,y iterators step through parent,
+              // like 0, 2, ... n -1, if they were 1, 3, ... n,
+              // we would see the reverse symmetry
+              const x_pts = [ -1, 0, 1, 2 ];
+              const y_pts = [ -1, 0, 1, 2 ];
+              // for first & last, repeat a pixel because only 1 is available
+              if (x_iter == 0) {
+                x_pts[0] = 0;
+              } else if (x_iter == width - 1) {
+                x_pts[3] = 1;
               }
-              let y_pts = [ -1, 0, 1, 2 ];
-              if (y_iter > (height / 2) - 1) {
-                y_pts = [ -2, -1, 0, 1 ];
-              } else if (y_iter == (height / 2) - 1) {
-                y_pts = [ -2, -1, 1, 2 ];
+              if (y_iter == 0) {
+                y_pts[0] = 0;
+              } else if (y_iter == height - 1) {
+                y_pts[3] = 1;
               }
 
               // this is an unrolled 4x4 dual nested loop, foul business,
