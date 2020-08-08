@@ -82,10 +82,10 @@ function getDataSize(format, width, height) {
              format == kPixelFormatRGB5) {
     return width * height * 2;
   } else if (format == kPixelFormatDXT1) {
-    return Math.max(8, parseInt((width + 3) / 4) * parseInt((height + 3) / 4) * 8);
+    return Math.max(8, Math.ceil(width / 4) * Math.ceil(height / 4) * 8);
   } else if (format == kPixelFormatDXT3 ||
              format == kPixelFormatDXT5) {
-    return Math.max(16, parseInt((width + 3) / 4) * parseInt((height + 3) / 4) * 16);
+    return Math.max(16, Math.ceil(width / 4) * Math.ceil(height / 4) * 16);
   }
   // this is an error, really
   return 0;
