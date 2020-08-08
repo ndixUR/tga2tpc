@@ -473,6 +473,7 @@ THREE.TGALoader.prototype.parse = function ( buffer ) {
 				y_start = 0;
 				y_step = 1;
 				y_end = height;
+				console.log(`TGA Origin UL pixel size ${header.pixel_size}`);
 				break;
 
 			case TGA_ORIGIN_BL:
@@ -482,6 +483,7 @@ THREE.TGALoader.prototype.parse = function ( buffer ) {
 				y_start = height - 1;
 				y_step = - 1;
 				y_end = - 1;
+				console.log(`TGA Origin BL pixel size ${header.pixel_size}`);
 				break;
 
 			case TGA_ORIGIN_UR:
@@ -491,6 +493,7 @@ THREE.TGALoader.prototype.parse = function ( buffer ) {
 				y_start = 0;
 				y_step = 1;
 				y_end = height;
+				console.log(`TGA Origin UR pixel size ${header.pixel_size}`);
 				break;
 
 			case TGA_ORIGIN_BR:
@@ -500,6 +503,7 @@ THREE.TGALoader.prototype.parse = function ( buffer ) {
 				y_start = height - 1;
 				y_step = - 1;
 				y_end = - 1;
+				console.log(`TGA Origin BR pixel size ${header.pixel_size}`);
 				break;
 
 		}
