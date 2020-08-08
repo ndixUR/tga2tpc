@@ -372,26 +372,69 @@ function generateDetailLevels(layers) {
         layer.height / Math.pow(2, mip_idx - 1), 1
       ));
       layer.mipmaps.push(new Uint8ClampedArray(width * height * bytes_per_pixel));
+      // we need to do a weighted average if downsizing from a parent with
+      // non-even dimensions because a simple 4x4 sample won't be accurate
+      const use_full_interp = (parent_width % 2 || parent_height % 2);
       for (let y_iter = 0; y_iter < height; y_iter++) {
+        const y_scaled = Math.floor(y_iter * (parent_height / height));
+        // pymin, pymax is the Y range of parent pixels to sample
+        const pymin = (y_iter / height) * parent_height;
+        const pymax = ((y_iter + 1) / height) * parent_height;
         for (let x_iter = 0; x_iter < width; x_iter++) {
           const x_scaled = Math.floor(x_iter * (parent_width / width));
-          const y_scaled = Math.floor(y_iter * (parent_height / height));
           const in_index = ((y_scaled * parent_width) + x_scaled) * bytes_per_pixel;
           const out_index = ((y_iter * width) + x_iter) * bytes_per_pixel;
+          // pxmin, pxmax is the X range of parent pixels to sample
+          const pxmin = (x_iter / width) * parent_width;
+          const pxmax = ((x_iter + 1) / width) * parent_width;
+          const weights = { total: 0.0 };
+          if (use_full_interp) {
+            // generate weights for averaging parent detail level pixels
+            // contributing to this pixel
+            for (let py = Math.floor(pymin); py <= Math.floor(pymax); py++) {
+              for (let px = Math.floor(pxmin); px <= Math.floor(pxmax); px++) {
+                const key = px +','+ py;
+                weights[key] = 1.0
+                if (px < pxmin) weights[key] *= (px + 1) - pxmin;
+                if (py < pymin) weights[key] *= (py + 1) - pymin;
+                if (px == Math.floor(pxmax) && pxmax >= px) weights[key] *= pxmax - px;
+                if (py == Math.floor(pymax) && pymax >= py) weights[key] *= pymax - py;
+                weights.total += weights[key];
+              }
+            }
+          }
           for (let i = 0; i < bytes_per_pixel; i++) {
-            // basic case, bilinear interpolation,
-            // (average of 2x2 grid from next mipmap up)
-            let datum = (
-              pixels[in_index + i] +
-              pixels[(in_index + bytes_per_pixel) + i] +
-              pixels[(in_index + (parent_width * bytes_per_pixel)) + i] +
-              pixels[(in_index + bytes_per_pixel + (parent_width * bytes_per_pixel)) + i]
-            ) * 0.25;
+            let datum;
+            if (!use_full_interp && !image.interpolation) {
+              // basic case, bilinear interpolation,
+              // (average of 2x2 grid from next mipmap up)
+              datum = Math.round((
+                pixels[in_index + i] +
+                pixels[(in_index + bytes_per_pixel) + i] +
+                pixels[(in_index + (parent_width * bytes_per_pixel)) + i] +
+                pixels[(in_index + bytes_per_pixel + (parent_width * bytes_per_pixel)) + i]
+              ) * 0.25);
+            } else if (use_full_interp) {
+              // intermediate case, bilinear interpolation for unclean downsize
+              // (weighted average of 2-2.5x2-2.5 grid from next mipmap up)
+              datum = 0;
+              datum_grid = weights.total;
+              for (let py = Math.floor(pymin); py <= Math.min(Math.floor(pymax), parent_height - 1); py++) {
+                for (let px = Math.floor(pxmin); px <= Math.min(Math.floor(pxmax), parent_width - 1); px++) {
+                  if (weights[px + ',' + py] > 0.0) {
+                    // not using datum += here for chromium optimizer purpose
+                    datum = datum + (
+                      pixels[(((py * parent_width) + px) * bytes_per_pixel) + i] *
+                      weights[px + ',' + py]
+                    );
+                  }
+                }
+              }
+              datum = Math.round(datum / weights.total);
+            } else if (!use_full_interp && image.interpolation) {
+              // advanced case, bicubic interpolation,
+              // (complex derivation of 4x4 grid from next mipmap up)
 
-            // advanced case, bicubic interpolation,
-            // (complex derivation of 4x4 grid from next mipmap up)
-            if (image.interpolation &&
-                (i != 3 || image.alphaFound)) {
               // determine pixel offsets for use in bicubic interpolation
               // in_index has pixel (red channel) under consideration
               // so, in_index + i = datum under consideration,
