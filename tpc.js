@@ -131,6 +131,11 @@ function prepare(texture) {
   //console.log(texture);
   //console.log(texture.pixelDepth);
 
+  // initialize the layer size to entire image size,
+  // if multi-layer, this will be adjusted later
+  image.layerDim.width   = image.texture.image.width;
+  image.layerDim.height  = image.texture.image.height;
+
   image.stat = {};
 
   image.alphaFound = false;
@@ -237,18 +242,6 @@ function prepare(texture) {
       }};
     }
     image.mipMapCount = 1;
-    if ((image.layerDim.width && (image.layerDim.width & (image.layerDim.width - 1))) ||
-        (image.layerDim.width && (image.layerDim.width & (image.layerDim.width - 1)))) {
-      // non-power of 2 width, this is an error
-      if (compressionRequested(image.formatRaw)) {
-        return {error: {
-          message: 'invalid input image',
-          detail: 'Invalid input frame size: ' + image.layerDim.width +
-                  'px x ' + image.layerDim.height + 'px, ' +
-                  'frame x and y must be power of 2.'
-        }};
-      }
-    }
   } else if (image.txi && image.txi.match(/^\s*cube\s+1/im)) {
     // cubemap, 6 layers,
     // image.dataSize = layerDataSize (w/o mipmaps)
@@ -263,44 +256,22 @@ function prepare(texture) {
     if (compressionRequested(image.formatRaw)) {
       image.dataSize = getDataSize(image.formatRaw, image.layerDim.width, image.layerDim.width);
     }
-    if (image.layerDim.width && (image.layerDim.width & (image.layerDim.width - 1))) {
-      // non-power of 2 width, this is an error
-      if (compressionRequested(image.formatRaw)) {
-        return {error: {
-          message: 'invalid input image',
-          detail:  'Invalid input image size: ' + image.width + 'px, ' +
-                   'width must be power of 2.'
-        }};
-      }
-    }
     // recompute mipmap count for cubemap based on layer dimension
     image.mipMapCount = (
       Math.log(Math.max(image.layerDim.width, image.layerDim.height)
     ) / Math.log(2)) + 1;
-  } else {
-    // non-power of 2 width, this is an error
-    if (compressionRequested(image.formatRaw) &&
-        (image.width && (image.width & (image.width - 1)) ||
-         image.height && (image.height & (image.height - 1)))) {
-      if (use_mode_automatic) {
-        // force raw/uncompressed mode for invalid image size
-        settings('compression', 'none');
-        image.stat.warnings = image.stat.warnings || [];
-        image.stat.warnings.push({
-          message: 'warning: invalid input image',
-          detail: 'Compression requires power of 2 for width and height, ' +
-                  `${image.width}px x ${image.height}px is not valid. ` +
-                  'This image was encoded uncompressed!'
-        });
-      } else {
-        return {error: {
-          message: 'invalid input image',
-          detail:  `Invalid input image size: ${image.width}px x ${image.height}px, ` +
-                   'width and height must be power of 2 for compression.'
-        }};
-      }
-    }
   }
+
+  // test for non-power-of-2 dimension texture
+  if ((image.layerDim.width &&
+       (image.layerDim.width & (image.layerDim.width - 1))) ||
+      (image.layerDim.height &&
+       (image.layerDim.height & (image.layerDim.height - 1)))) {
+    // try to assert helpful warnings
+    // if 24-bit uncompressed, this image will cause issues in K1
+    // only power-of-2 dimensions produce clean mipmaps
+   }
+
   // move pixel data from texture buffer to layers structure
   if (image.layerPos && image.layerPos.length) {
     for (let pos of image.layerPos) {
