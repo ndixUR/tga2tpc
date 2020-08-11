@@ -324,11 +324,51 @@ function prepare(texture) {
   return image;
 };
 
+// emit overall progress of current TPC file encoding process
+function progress(nprog, op, layer) {
+  // begin by interpreting nprog as global progress of overall encoding process
+  let cur_prog = nprog;
+  const phase_map = {
+    'scale': 0.3,
+    'compress': 0.7
+  };
+  const phase_order = [
+    'scale', 'compress'
+  ];
+  if (nprog == null &&
+      (!op || !phase_map[op])) {
+    return;
+  }
+  // a phase is specified, so now interpret nprog as progess in-phase
+  if (op && phase_map[op]) {
+    // operator gives us its own progress,
+    // fit it into global status here
+    const layer_factor = 1 / image.layerCount;
+    cur_prog = 0.0;
+    let op_scale = 0.0;
+    // accumulate progress of finished phases
+    for (let pk of phase_order) {
+      if (pk != op) {
+        cur_prog += phase_map[pk];
+      } else {
+        break;
+      }
+    }
+    cur_prog = cur_prog +
+      // finished layers
+      ((layer - 1) * layer_factor) +
+      // current layer
+      (nprog * phase_map[op] * layer_factor);
+  }
+  feedback.emit('progress', cur_prog);
+}
+
 // create mipmap pixel data for all layers
 function generateDetailLevels(layers) {
   layers = layers || [];
   const bytes_per_pixel = 4;
-  for (let layer of layers) {
+  for (let layer_idx in layers) {
+    const layer = layers[layer_idx];
     const num_detail_levels = (
       Math.log(Math.max(layer.width, layer.height)) / Math.log(2)
     ) + 1;
@@ -342,6 +382,10 @@ function generateDetailLevels(layers) {
       const parent_height = Math.floor(Math.max(
         layer.height / Math.pow(2, mip_idx - 1), 1
       ));
+      const progress_range = [
+        1 - (Math.pow(0.5, (Math.log(Math.pow(2, mip_idx) / 2) / Math.log(2)) + 1)),
+        1 - (Math.pow(0.5, (Math.log(Math.pow(2, mip_idx)) / Math.log(2)) + 1))
+      ];
       layer.mipmaps.push(new Uint8ClampedArray(width * height * bytes_per_pixel));
       // we need to do a weighted average if downsizing from a parent with
       // non-even dimensions because a simple 4x4 sample won't be accurate
@@ -578,6 +622,7 @@ function generateDetailLevels(layers) {
       octx.putImageData(id,0,0);
       $('body').prepend(mmapcv);
       */
+      progress(progress_range[1], 'scale', layer_idx + 1);
     }
   }
 }
@@ -669,6 +714,12 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     filepos + '-' + (filepos + compressed_size) + ' (' + compressed_size + ') ' +
     '(' + width + ',' + height + ')'
   );
+
+  // compute layer-relative progress at beginning and end of this mipmap
+  const progress_range = [
+    1 - (Math.pow(0.5, (Math.log(scale / 2) / Math.log(2)) + 1)),
+    1 - (Math.pow(0.5, (Math.log(scale) / Math.log(2)) + 1))
+  ];
 
   // grab the appropriate pre-formatted pixel buffer
   let mipmap = image.layers[layer - 1].mipmaps[mipmap_index];
@@ -816,13 +867,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     if (err) { console.log(err); return; }
     //(Math.log(scale) / Math.log(2)) == mipmap # 
     // mipmap progress = 50% * mipmap num * 50%
-    let prog = 1 - (Math.pow(0.5, (Math.log(scale) / Math.log(2)) + 1));
-    //console.log('mipmap prog', prog);
-    // layer progress
-    prog = (prog / image.layerCount) + ((layer - 1) / image.layerCount);
-    //console.log(layer, image.layerCount);
-    //console.log('layer prog', prog);
-    feedback.emit('progress', prog);
+    progress(progress_range[1], 'compress', layer);
     // prepare settings for next run
     //filepos += size;
     //console.log(bytesWritten);
@@ -853,7 +898,7 @@ function write_txi(stream, image, cb) {
     image_status = image.stat;
   }
   if (!image || !image.txi || !image.txi.length) {
-    feedback.emit('progress', 1);
+    progress(1.0);
     stream.end();
     cleanImage();
     if (cb) return cb(null, image_status);
@@ -866,7 +911,7 @@ function write_txi(stream, image, cb) {
   image.txi += '\r\n';
   stream.write(image.txi, function(err, bytesWritten, buffer) {
     if (err) { console.log(err); return; }
-    feedback.emit('progress', 1);
+    progress(1.0);
     // final success, callback
     stream.end();
     cleanImage();
@@ -891,7 +936,7 @@ function export_tpc(filename, texture, cb) {
   //interpolation = interpolation || false;
   //console.log(image);
   //console.log(texture);
-  feedback.emit('progress', 0);
+  progress(0);
 
   let result = prepare(texture);
   
@@ -904,7 +949,7 @@ function export_tpc(filename, texture, cb) {
   if (result.error) {
     return cb(result.error);
   }
-  feedback.emit('progress', 0.01);
+  progress(0.01);
 
   //image.txi             = txi;
   //image.interpolation   = interpolation;
