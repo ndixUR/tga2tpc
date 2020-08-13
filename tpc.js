@@ -860,7 +860,8 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
         UseAdaptiveWeighting: true,
         CompressionSpeed: cmpntr.CMP_Speed_Normal,
         '3DRefinement': false,
-        RefinementSteps: 1
+        RefinementSteps: 1,
+        encoding: image.formatRaw == kPixelFormatDXT5 ? cmpntr.ENCODING_DXT5 : cmpntr.ENCODING_DXT1
       });
     } catch (err) {
       console.log(err);
