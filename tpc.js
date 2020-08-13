@@ -211,8 +211,8 @@ function prepare(texture) {
     image.layerDim.width = parseInt(defwidth);
     image.layerDim.height = parseInt(defheight);
     image.layerPos = [];
-    for (let y = 0; y < image.height; y += image.layerDim.height) {
-      for (let x = 0; x < image.width; x += image.layerDim.width) {
+    for (var y = 0; y < image.height; y += image.layerDim.height) {
+      for (var x = 0; x < image.width; x += image.layerDim.width) {
         image.layerPos.push({ x: x, y: y });
       }
     }
@@ -251,7 +251,7 @@ function prepare(texture) {
     image.layerDim.width = image.width;
     image.layerDim.height = image.width;
     image.layerPos = [];
-    for (let y = 0; y < image.height; y += image.layerDim.width) {
+    for (var y = 0; y < image.height; y += image.layerDim.width) {
       image.layerPos.push({ x: 0, y: y });
     }
     if (compressionRequested(image.formatRaw)) {
