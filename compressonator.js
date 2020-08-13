@@ -192,8 +192,8 @@ function compress(buffer, width, height, opts) {
 
     const block_size = opts.encoding == ENCODING_DXT5 ? 16 : 8
     const output = new Uint8ClampedArray(dwBlocksY * dwBlocksX * block_size);
-    for (let j = 0; j < dwBlocksY; j++) {
-        for (let i = 0; i < dwBlocksX; i++) {
+    for (var j = 0; j < dwBlocksY; j++) {
+        for (var i = 0; i < dwBlocksX; i++) {
             const block_idx = i + (j * dwBlocksX);
             const compressed_block_offset = block_idx * block_size;
             const alpha_block_offset = compressed_block_offset;
@@ -229,12 +229,12 @@ function compress(buffer, width, height, opts) {
 function ReadBlockRGBA(x, y, w, h, buffer, src_width, src_height) {
     const block = new Uint8ClampedArray(w * h * 4);
     //const src_offset = ((y * src_width) + x) * 4
-    for (let j = 0; j < h; j++) {
+    for (var j = 0; j < h; j++) {
         // can't really set by row, because of boundary conditions :(
         //block.set(buffer.subarray(src_offset + (i * src_width), src_offset + (i * src_width) + 4);
         const src_y = Math.min(y + j, src_height - 1);
         const src_y_width = src_y * src_width;
-        for (let i = 0; i < w; i++) {
+        for (var i = 0; i < w; i++) {
             const src_x = Math.min(x + i, src_width - 1);
             //block[i + (i * j)] = buffer[((src_y * src_width) + src_x) * 4];
             // set one RGBA pixel into block buffer
@@ -302,7 +302,7 @@ function EncodeAlphaBlock(compressedBlock, nEndpoints, nIndices)
     compressedBlock[0] = (nEndpoints[0]) | ((nEndpoints[1])<<8);
     compressedBlock[1] = 0;
 
-    for(let i = 0; i < BLOCK_SIZE_4X4; i++)
+    for (var i = 0; i < BLOCK_SIZE_4X4; i++)
     {
         if(i < 5)
             compressedBlock[0] |= (nIndices[i] & 0x7) << (16 + (i * 3));
@@ -327,8 +327,8 @@ function CompressRGBBlock(rgbBlock,
 
     // rgbBlock = 16 Uint32 RGBA entries
 
-    const nEndpoints = [[],[]];
-    const nIndices   = [[],[]];
+    var nEndpoints = [[],[]];
+    var nIndices   = [[],[]];
 
     const compressedBlock = new Uint8ClampedArray(8);
     const cb_view = new DataView(compressedBlock.buffer);
@@ -403,7 +403,7 @@ function CompressRGBBlock(rgbBlock,
                          (nIndices[nMethod][15] << 6);
     /* uint32 method:
     compressedBlock[1] = 0;
-    for (let i = 0; i < 16; i++) {
+    for (var i = 0; i < 16; i++) {
         compressedBlock[1] |= (nIndices[nMethod][i] << (2*i));
     }
     */
@@ -419,19 +419,19 @@ function CompRGBBlock(block_32, dwBlockSize,
                       _bUseAlpha, _nAlphaThreshold) {
     // get colors
     const dwBlk = [];
-    const Rpt = [];
+    var Rpt = [];
     // values in block_32 are ABGR due to endian change
-    for (let i = 0; i < block_32.length; i++) {
+    for (var i = 0; i < block_32.length; i++) {
         dwBlk[i] = block_32[i] | 0xff000000;
     }
     const dwBlkU = {};
-    for (let c of dwBlk) {
+    for (var c of dwBlk) {
         dwBlkU[c] = dwBlkU[c] ? dwBlkU[c] + 1 : 1;
     }
     const uniqCol = Object.keys(dwBlkU);
-    const dwUniqueColors = uniqCol.length;
-    const BlkIn = [];
-    for (let i in uniqCol) {
+    var dwUniqueColors = uniqCol.length;
+    var BlkIn = [];
+    for (var i in uniqCol) {
         BlkIn[i] = BlkIn[i] || [];
         BlkIn[i][BC] = (uniqCol[i] >> 16) & 0xff;
         BlkIn[i][GC] = (uniqCol[i] >> 8) & 0xff;
@@ -457,16 +457,16 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
                            dwNumPoints, b3DRefinement, nRefinementSteps,
                            _pfWeights, 
                            nRedBits, nGreenBits, nBlueBits) {
-    const LineDirG = [[], [], [], []];
-    const PosG = [];
-    const BlkSh = [];
-    const LineDir0 = [[], [], [], []];
-    const Mdl = [[], [], [], []];
-    const rsltC = [[], [], [], []];
+    var LineDirG = [[], [], [], []];
+    var PosG = [];
+    var BlkSh = [];
+    var LineDir0 = [[], [], [], []];
+    var Mdl = [[], [], [], []];
+    var rsltC = [[], [], [], []];
     // strangely, this seems to be most performant way to copy/map this array;
     // I had assumed Array.from and/or map would be better, they are not.
-    const Blk = [];
-    for (let i in _BlkIn) {
+    var Blk = [];
+    for (var i in _BlkIn) {
         Blk[i] = Blk[i] || [];
         Blk[i][RC] = _BlkIn[i][RC] / 255.0;
         Blk[i][GC] = _BlkIn[i][GC] / 255.0;
@@ -474,17 +474,17 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
         Blk[i][AC] = _BlkIn[i][AC] / 255.0;
     }
 
-    let isDONE = false;
+    var isDONE = false;
 
     if (_BlkIn.length <= 2) {
-        for (let j = 0; j < 3; j++) {
+        for (var j = 0; j < 3; j++) {
             rsltC[j][0] = _BlkIn[0][j];
             rsltC[j][1] = _BlkIn[_BlkIn.length - 1][j];
         }
         isDONE = true;
     }
 
-    let bSmall = true;
+    var bSmall = true;
     if (!isDONE) {
 //    This is our first attempt to find an axis we will go along.
 //    The cumulation is done to find a line minimizing the MSE from the input 3D points.
@@ -493,7 +493,7 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
 //    While trying to find the axis we found that the diameter of the input set is quite small.
 //    Do not bother.
         if(bSmall) {
-            for (let j = 0; j < 3; j++) {
+            for (var j = 0; j < 3; j++) {
                 rsltC[j][0] = _BlkIn[0][j];
                 rsltC[j][1] = _BlkIn[_BlkIn.length - 1][j];
             }
@@ -502,14 +502,14 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
     }
 
     if (!isDONE) {
-        let ErrG = FLT_MAX;
-        const Prj0 = [];
-        const Prj = [];
-        const PrjErr = [];
-        const LineDir = [];
-        const RmpIndxs = [];
-        const PrjBnd = [];
-        const PreMRep = [];
+        var ErrG = FLT_MAX;
+        var Prj0 = [];
+        var Prj = [];
+        var PrjErr = [];
+        var LineDir = [];
+        var RmpIndxs = [];
+        var PrjBnd = [];
+        var PreMRep = [];
         // LineDir = LineDir0?
         //for(j =0; j < 3; j++) {
         //    LineDir[j] = LineDir0[j];
@@ -554,11 +554,11 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
             //
             PrjBnd[0] = 1000.0;
             PrjBnd[1] = -1000.0;
-            for(let i = 0; i < MAX_BLOCK; i++) {
+            for (var i = 0; i < MAX_BLOCK; i++) {
                 Prj0[i] = Prj[i] = PrjErr[i] = PreMRep[i] = 0.0;
             }
 
-            for(let i = 0; i < _UniqClrs; i++)
+            for (var i = 0; i < _UniqClrs; i++)
             {
                 Prj0[i] = Prj[i] = BlkSh[i][0] * LineDir[0] + BlkSh[i][1] * LineDir[1] + BlkSh[i][2] * LineDir[2];
 
@@ -573,15 +573,15 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
             //  2. Run 1 dimensional search (see scalar case) to find an (sub) optimal pair of end points.
 
             // min and max of the search interval
-            const Scl = []; //[NUM_ENDPOINTS];
+            var Scl = []; //[NUM_ENDPOINTS];
             Scl[0] = PrjBnd[0] - (PrjBnd[1] - PrjBnd[0]) * 0.125;
             Scl[1] = PrjBnd[1] + (PrjBnd[1] - PrjBnd[0]) * 0.125;
 
             // compute scaling factor to scale down the search interval to [0.,1] 
-            const Scl2 = (Scl[1] - Scl[0]) * (Scl[1] - Scl[0]);
-            const overScl = 1.0/(Scl[1] - Scl[0]);
+            var Scl2 = (Scl[1] - Scl[0]) * (Scl[1] - Scl[0]);
+            var overScl = 1.0/(Scl[1] - Scl[0]);
 
-            for(let i = 0; i < _UniqClrs; i++)
+            for (var i = 0; i < _UniqClrs; i++)
             {
                 // scale them
                 Prj[i] = (Prj[i] - Scl[0]) * overScl;
@@ -590,27 +590,28 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
             }
 
             // scale first approximation of end points
-            for(let k = 0; k < 2; k++)
+            for (var k = 0; k < 2; k++)
                 PrjBnd[k] = (PrjBnd[k] - Scl[0]) * overScl;
 
             Err = MAX_ERROR;
+            //Err = 12800000.0;
 
             // search step
-            const stp = 0.025;
+            var stp = 0.025;
 
             // low Start/End; high Start/End
-            const lS = (PrjBnd[0] - 2.0 * stp > 0.0) ?  PrjBnd[0] - 2.0 * stp : 0.0;
-            const hE = (PrjBnd[1] + 2.0 * stp < 1.0) ?  PrjBnd[1] + 2.0 * stp : 1.0;
+            var lS = (PrjBnd[0] - 2.0 * stp > 0.0) ?  PrjBnd[0] - 2.0 * stp : 0.0;
+            var hE = (PrjBnd[1] + 2.0 * stp < 1.0) ?  PrjBnd[1] + 2.0 * stp : 1.0;
 
             // find the best endpoints 
-            const Pos = []; //[NUM_ENDPOINTS];
-            //let lP, hP;
-            //let l, h;
-            for(let l = 0, lP = lS; l < 8; l++, lP += stp)
+            var Pos = []; //[NUM_ENDPOINTS];
+            //var lP, hP;
+            //var l, h;
+            for (var l = 0, lP = lS; l < 8; l++, lP += stp)
             {
-                for(let h = 0, hP = hE; h < 8; h++, hP -= stp)
+                for (var h = 0, hP = hE; h < 8; h++, hP -= stp)
                 {
-                    let err = Err;
+                    var err = Err;
                     // compute an error for the current pair of end points.
                     err = RampSrchW(Prj, PrjErr, PreMRep, err, lP, hP, _UniqClrs, dwNumPoints);
 
@@ -625,7 +626,7 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
             }
 
             // inverse the scaling
-            for(let k = 0; k < 2; k++)
+            for (var k = 0; k < 2; k++)
                 Pos[k] = Pos[k] * (Scl[1] - Scl[0]) + Scl[0];
 
             // did we find somthing better from the previous run?
@@ -640,18 +641,18 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
                 PosG[1] = Pos[1];
                 //  3. Compute the vector of indexes (or clusters) for the current approximate ramp.
                 // indexes
-                const step = (Pos[1] - Pos[0]) / (dwNumPoints - 1);
-                const step_h = step * 0.5;
-                const rstep = 1.0 / step;
-                const overBlkTp = 1.0/  (dwNumPoints - 1) ;  
+                var step = (Pos[1] - Pos[0]) / (dwNumPoints - 1);
+                var step_h = step * 0.5;
+                var rstep = 1.0 / step;
+                var overBlkTp = 1.0/  (dwNumPoints - 1) ;
 
                 // here the index vector is computed, 
                 // shifted and normalized
-                const indxAvrg = (dwNumPoints - 1) / 2.0; 
+                var indxAvrg = (dwNumPoints - 1) / 2.0;
 
-                for(let i = 0; i < _UniqClrs; i++)
+                for (var i = 0; i < _UniqClrs; i++)
                 {
-                    const del = Prj0[i] - Pos[0];
+                    var del = Prj0[i] - Pos[0];
                     //int n = (int)((b - _min_ex + (step*0.5)) * rstep);
                     if(del <= 0)
                         RmpIndxs[i] = 0.0;
@@ -665,12 +666,12 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
 
                 //  4. Present our color channels as 3 16DIM vectors.
                 //  5. Find closest aproximation of each of 16DIM color vector with the pojection of the 16DIM index vector.
-                let Crs = [], Len, Len2;
-                let i;
-                for (i = 0, Crs[0] = Crs[1] = Crs[2] = Len = 0.0; i < _UniqClrs; i++)
+                var Crs = [ 0.0, 0.0, 0.0 ];
+                var Len = 0.0, Len2 = 0.0;
+                for (var i = 0; i < _UniqClrs; i++)
                 {
-                    const PreMlt = RmpIndxs[i] * _Rpt[i];
-                    Len += RmpIndxs[i] * PreMlt;
+                    var PreMlt = RmpIndxs[i] * _Rpt[i];
+                    Len = Len + (RmpIndxs[i] * PreMlt);
                     for(j = 0; j < 3; j++)
                         Crs[j] += BlkSh[i][j] * PreMlt;
                 }
@@ -700,8 +701,8 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
         } 
 
         // inverse transform to find end-points of 3-color ramp
-        for(let k = 0; k < 2; k++) {
-            for(let j = 0; j < 3; j++) {
+        for (var k = 0; k < 2; k++) {
+            for (var j = 0; j < 3; j++) {
                 rsltC[j][k] = (PosG[k] * LineDirG[j]  + Mdl[j]) * 255.0;
             }
         }
@@ -711,7 +712,7 @@ function CompressRGBBlockX(_RsltRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
 // Now back to the dirty digital world.
 
 // round the end points to make them look like compressed ones
-    const inpRmpEndPts = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
+    var inpRmpEndPts = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
     MkRmpOnGrid(inpRmpEndPts, rsltC, 0.0, 255.0, nRedBits, nGreenBits, nBlueBits);
 
 
@@ -749,9 +750,9 @@ function MkRmpOnGrid(_RmpF, //[NUM_CHANNELS][NUM_ENDPOINTS],
     Fctrs0[GC] = (1 << (PIX_GRID-nGreenBits));  
     Fctrs0[BC] = (1 << (PIX_GRID-nBlueBits));
 
-    for(let j = 0; j < 3; j++)
+    for (var j = 0; j < 3; j++)
     {
-        for(let k = 0; k < 2; k++)
+        for (var k = 0; k < 2; k++)
         {
             _RmpF[j][k] = Math.floor(_MnMx[j][k]);
             if(_RmpF[j][k] <= _Min)
@@ -774,33 +775,33 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
                 _NmrClrs, dwNumPoints, _pfWeights, 
                 nRedBits, nGreenBits, nBlueBits, nRefineSteps)
 {
-    const Rmp = [[], [], [], []]; //[NUM_CHANNELS][MAX_POINTS];
+    var Rmp = [[], [], [], []]; //[NUM_CHANNELS][MAX_POINTS];
 
     /* this copy operation seems unnecessary
-    const Blk = [];//[MAX_BLOCK][NUM_CHANNELS];
-    for(let i = 0; i < _NmrClrs; i++) {
-        for(let j = 0; j < 3; j++) {
+    var Blk = [];//[MAX_BLOCK][NUM_CHANNELS];
+    for (var i = 0; i < _NmrClrs; i++) {
+        for (var j = 0; j < 3; j++) {
            Blk[i] = Blk[i] || [];
            Blk[i][j] = _Blk[i][j];
         }
     }
     */
-    const Blk = _Blk;
+    var Blk = _Blk;
 
-    const fWeightRed = _pfWeights ? _pfWeights[0] : 1.0;
-    const fWeightGreen = _pfWeights ? _pfWeights[1] : 1.0;
-    const fWeightBlue = _pfWeights ? _pfWeights[2] : 1.0;
+    var fWeightRed = _pfWeights ? _pfWeights[0] : 1.0;
+    var fWeightGreen = _pfWeights ? _pfWeights[1] : 1.0;
+    var fWeightBlue = _pfWeights ? _pfWeights[2] : 1.0;
 
     // here is our grid
-    const Fctrs = []; 
+    var Fctrs = [];
     Fctrs[RC] = (1 << (PIX_GRID-nRedBits));  
     Fctrs[GC] = (1 << (PIX_GRID-nGreenBits));  
     Fctrs[BC] = (1 << (PIX_GRID-nBlueBits));
 
-    const InpRmp0 = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
-    const InpRmp = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
-    for(let k = 0; k < 2; k++) {
-        for(let j = 0; j < 3; j++) {
+    var InpRmp0 = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
+    var InpRmp = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
+    for (var k = 0; k < 2; k++) {
+        for (var j = 0; j < 3; j++) {
             _OutRmpPnts[j] = _OutRmpPnts[j] || [];
             InpRmp0[j][k] = InpRmp[j][k] = _OutRmpPnts[j][k] = _InpRmpPnts[j][k];
         }
@@ -808,44 +809,46 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
 
     // make ramp endpoints the way they'll going to be decompressed
     // plus check whether the ramp is flat
-    let Eq;
-    const WkRmpPts = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
+    var Eq;
+    var WkRmpPts = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
     Eq = MkWkRmpPts(WkRmpPts, InpRmp, nRedBits, nGreenBits, nBlueBits);
 
     // build ramp for all 3 colors
     BldRmp(Rmp, WkRmpPts, dwNumPoints); 
 
     // clusterize for the current ramp
-    let bestE = ClstrErr(Blk, _Rpt, Rmp, _NmrClrs, dwNumPoints, Eq, _pfWeights);
+    var bestE = ClstrErr(Blk, _Rpt, Rmp, _NmrClrs, dwNumPoints, Eq, _pfWeights);
     if(bestE == 0.0 || !nRefineSteps)    // if exact, we've done
         return bestE;
 
     // Tweak each component in isolation and get the best values
-    let DistR, DistG, DistB;
+    var DistR, DistG, DistB;
+    var Dist, Err, MinErr;
 
     // precompute ramp errors for Green and Blue
-    const RmpErr = [];//[MAX_POINTS][MAX_BLOCK];
-    for(let i = 0; i < _NmrClrs; i++)
+    var RmpErr = [];//[MAX_POINTS][MAX_BLOCK];
+    for (var i = 0; i < _NmrClrs; i++)
     {
-        for(let r = 0; r < dwNumPoints; r++)
+        for (var r = 0; r < dwNumPoints; r++)
         {
             RmpErr[r] = RmpErr[r] || [];
-            //const DistG = (Rmp[GC][r] - Blk[i][GC]);
-            //const DistB = (Rmp[BC][r] - Blk[i][BC]);
+            //var DistG = (Rmp[GC][r] - Blk[i][GC]);
+            //var DistB = (Rmp[BC][r] - Blk[i][BC]);
             DistG = (Rmp[GC][r] - Blk[i][GC]);
             DistB = (Rmp[BC][r] - Blk[i][BC]);
-            RmpErr[r][i] = DistG * DistG * fWeightGreen + DistB * DistB * fWeightBlue;
+            RmpErr[r][i] = (DistG * DistG * fWeightGreen) +
+                           (DistB * DistB * fWeightBlue);
         }
     }
 
     // First Red
-    let bstC0 = InpRmp0[RC][0];
-    let bstC1 = InpRmp0[RC][1];
-    const nRefineStart = 0 - (Math.min(nRefineSteps, 8));
-    const nRefineEnd = Math.min(nRefineSteps, 8);
-    for(let i = nRefineStart; i <= nRefineEnd; i++)
+    var bstC0 = InpRmp0[RC][0];
+    var bstC1 = InpRmp0[RC][1];
+    var nRefineStart = 0 - (Math.min(nRefineSteps, 8));
+    var nRefineEnd = Math.min(nRefineSteps, 8);
+    for (var i = nRefineStart; i <= nRefineEnd; i++)
     {
-        for(let j = nRefineStart; j <= nRefineEnd; j++)
+        for (var j = nRefineStart; j <= nRefineEnd; j++)
         {
             // make a move; both sides of interval.        
             InpRmp[RC][0] = Math.min(Math.max(InpRmp0[RC][0] + i * Fctrs[RC], 0.0), 255.0);
@@ -859,21 +862,21 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
             BldClrRmp(Rmp[RC], WkRmpPts[RC], dwNumPoints);
 
             // compute cumulative error
-            let mse = 0.0;
-            const rmp_l = (Eq) ? 1 : dwNumPoints;
-            let Dist, Err;
-            for(let k = 0; k < _NmrClrs; k++)
+            var mse = 0.0;
+            var rmp_l = (Eq) ? 1 : dwNumPoints;
+            //var Dist, Err;
+            for (var k = 0; k < _NmrClrs; k++)
             {
-                let MinErr = 10000000.0;
-                for(let r = 0; r < rmp_l; r++)
+                MinErr = 10000000.0;
+                for (var r = 0; r < rmp_l; r++)
                 {
-                    //const Dist = (Rmp[RC][r] - Blk[k][RC]);
-                    //const Err = RmpErr[r][k] + (Dist * Dist * fWeightRed);
+                    //var Dist = (Rmp[RC][r] - Blk[k][RC]);
+                    //var Err = RmpErr[r][k] + (Dist * Dist * fWeightRed);
                     Dist = (Rmp[RC][r] - Blk[k][RC]);
                     Err = RmpErr[r][k] + (Dist * Dist * fWeightRed);
                     MinErr = Math.min(MinErr, Err);
                 }
-                mse += MinErr * _Rpt[k];
+                mse = mse + (MinErr * _Rpt[k]);
             }
 
             // save if we achieve better result
@@ -898,12 +901,12 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
     BldRmp(Rmp, WkRmpPts, dwNumPoints); 
 
     // precompute ramp errors for Red and Blue
-    for(let i = 0; i < _NmrClrs; i++)
+    for (var i = 0; i < _NmrClrs; i++)
     {
-        for(let r = 0; r < dwNumPoints; r++)
+        for (var r = 0; r < dwNumPoints; r++)
         {
-            //const DistR = (Rmp[RC][r] - Blk[i][RC]);
-            //const DistB = (Rmp[BC][r] - Blk[i][BC]);
+            //var DistR = (Rmp[RC][r] - Blk[i][RC]);
+            //var DistB = (Rmp[BC][r] - Blk[i][BC]);
             DistR = (Rmp[RC][r] - Blk[i][RC]);
             DistB = (Rmp[BC][r] - Blk[i][BC]);
             RmpErr[r][i] = DistR * DistR * fWeightRed + DistB * DistB * fWeightBlue;
@@ -913,9 +916,9 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
     // Now green
     bstC0 = InpRmp0[GC][0];
     bstC1 = InpRmp0[GC][1];
-    for(let i = nRefineStart; i <= nRefineEnd; i++)
+    for (var i = nRefineStart; i <= nRefineEnd; i++)
     {
-        for(let j = nRefineStart; j <= nRefineEnd; j++)
+        for (var j = nRefineStart; j <= nRefineEnd; j++)
         {
             InpRmp[GC][0] = Math.min(Math.max(InpRmp0[GC][0] + i * Fctrs[GC], 0.0), 255.0);
             InpRmp[GC][1] = Math.min(Math.max(InpRmp0[GC][1] + j * Fctrs[GC], 0.0), 255.0);
@@ -923,21 +926,21 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
             Eq = MkWkRmpPts(WkRmpPts, InpRmp, nRedBits, nGreenBits, nBlueBits);
             BldClrRmp(Rmp[GC], WkRmpPts[GC], dwNumPoints);
 
-            let mse = 0.0;
-            const rmp_l = (Eq) ? 1 : dwNumPoints;
-            let Dist, Err;
-            for(let k = 0; k < _NmrClrs; k++)
+            var mse = 0.0;
+            var rmp_l = (Eq) ? 1 : dwNumPoints;
+            //var Dist, Err;
+            for (var k = 0; k < _NmrClrs; k++)
             {
-                let MinErr = 10000000.0;
-                for(let r = 0; r < rmp_l; r++)
+                MinErr = 10000000.0;
+                for (var r = 0; r < rmp_l; r++)
                 {
-                    //const Dist = (Rmp[GC][r] - Blk[k][GC]);
-                    //const Err = RmpErr[r][k] +  Dist * Dist * fWeightGreen;
+                    //var Dist = (Rmp[GC][r] - Blk[k][GC]);
+                    //var Err = RmpErr[r][k] +  Dist * Dist * fWeightGreen;
                     Dist = (Rmp[GC][r] - Blk[k][GC]);
                     Err = RmpErr[r][k] +  Dist * Dist * fWeightGreen;
                     MinErr = Math.min(MinErr, Err);
                 }
-                mse += MinErr * _Rpt[k];
+                mse = mse + (MinErr * _Rpt[k]);
             }
 
             if(mse < bestE)
@@ -957,12 +960,12 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
     BldRmp(Rmp, WkRmpPts, dwNumPoints); 
 
     // ramp err for Red and Green
-    for(let i=0; i < _NmrClrs; i++)
+    for (var i=0; i < _NmrClrs; i++)
     {
-        for(let r = 0; r < dwNumPoints; r++)
+        for (var r = 0; r < dwNumPoints; r++)
         {
-            //const DistR = (Rmp[RC][r] - Blk[i][RC]);
-            //const DistG = (Rmp[GC][r] - Blk[i][GC]);
+            //var DistR = (Rmp[RC][r] - Blk[i][RC]);
+            //var DistG = (Rmp[GC][r] - Blk[i][GC]);
             DistR = (Rmp[RC][r] - Blk[i][RC]);
             DistG = (Rmp[GC][r] - Blk[i][GC]);
             RmpErr[r][i] = DistR * DistR * fWeightRed + DistG * DistG * fWeightGreen;
@@ -972,9 +975,9 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
     bstC0 = InpRmp0[BC][0];
     bstC1 = InpRmp0[BC][1];
     // Now blue
-    for(let i = nRefineStart; i <= nRefineEnd; i++)
+    for (var i = nRefineStart; i <= nRefineEnd; i++)
     {
-        for(let j = nRefineStart; j <= nRefineEnd; j++)
+        for (var j = nRefineStart; j <= nRefineEnd; j++)
         {
             InpRmp[BC][0] = Math.min(Math.max(InpRmp0[BC][0] + i * Fctrs[BC], 0.0), 255.0);
             InpRmp[BC][1] = Math.min(Math.max(InpRmp0[BC][1] + j * Fctrs[BC], 0.0), 255.0);
@@ -982,21 +985,21 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
             Eq = MkWkRmpPts(WkRmpPts, InpRmp, nRedBits, nGreenBits, nBlueBits);
             BldClrRmp(Rmp[BC], WkRmpPts[BC], dwNumPoints);
 
-            let mse = 0.0;
-            const rmp_l = (Eq) ? 1 : dwNumPoints;
-            let Dist, Err;
-            for(let k = 0; k < _NmrClrs; k++)
+            var mse = 0.0;
+            var rmp_l = (Eq) ? 1 : dwNumPoints;
+            //var Dist, Err;
+            for (var k = 0; k < _NmrClrs; k++)
             {
-                let MinErr = 10000000.0;
-                for(let r = 0; r < rmp_l; r++)
+                MinErr = 10000000.0;
+                for (var r = 0; r < rmp_l; r++)
                 {
-                    //const Dist = (Rmp[BC][r] - Blk[k][BC]);
-                    //const Err = RmpErr[r][k] +  Dist * Dist * fWeightBlue;
+                    //var Dist = (Rmp[BC][r] - Blk[k][BC]);
+                    //var Err = RmpErr[r][k] +  Dist * Dist * fWeightBlue;
                     Dist = (Rmp[BC][r] - Blk[k][BC]);
                     Err = RmpErr[r][k] +  Dist * Dist * fWeightBlue;
                     MinErr = Math.min(MinErr, Err);
                 }
-                mse += MinErr * _Rpt[k];
+                mse = mse + (MinErr * _Rpt[k]);
             }
 
             if(mse < bestE)
@@ -1013,8 +1016,8 @@ function Refine(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
     InpRmp[BC][1] = bstC1;
 
     // return our best choice
-    for(let j = 0; j < 3; j++) {
-        for(let k = 0; k < 2; k++) {
+    for (var j = 0; j < 3; j++) {
+        for (var k = 0; k < 2; k++) {
             _OutRmpPnts[j] = _OutRmpPnts[j] || [];
             _OutRmpPnts[j][k] = InpRmp[j][k];
         }
@@ -1030,33 +1033,33 @@ function Refine3D(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
                   _NmrClrs, dwNumPoints, _pfWeights, 
                   nRedBits, nGreenBits, nBlueBits, nRefineSteps)
 {
-    const Rmp = [[], [], [], []]; //[NUM_CHANNELS][MAX_POINTS];
+    var Rmp = [[], [], [], []]; //[NUM_CHANNELS][MAX_POINTS];
 
     /* this copy operation seems unnecessary
-    const Blk= []; //[MAX_BLOCK][NUM_CHANNELS];
-    for(let i = 0; i < _NmrClrs; i++) {
-        for(let j = 0; j < 3; j++) {
+    var Blk= []; //[MAX_BLOCK][NUM_CHANNELS];
+    for (var i = 0; i < _NmrClrs; i++) {
+        for (var j = 0; j < 3; j++) {
             Blk[i] = Blk[i] || [];
             Blk[i][j] = _Blk[i][j];
         }
     }
     */
-    const Blk = _Blk;
+    var Blk = _Blk;
 
-    const fWeightRed = _pfWeights ? _pfWeights[0] : 1.0;
-    const fWeightGreen = _pfWeights ? _pfWeights[1] : 1.0;
-    const fWeightBlue = _pfWeights ? _pfWeights[2] : 1.0;
+    var fWeightRed = _pfWeights ? _pfWeights[0] : 1.0;
+    var fWeightGreen = _pfWeights ? _pfWeights[1] : 1.0;
+    var fWeightBlue = _pfWeights ? _pfWeights[2] : 1.0;
 
     // here is our grid
-    let Fctrs = []; 
+    var Fctrs = [];
     Fctrs[RC] = (1 << (PIX_GRID-nRedBits));  
     Fctrs[GC] = (1 << (PIX_GRID-nGreenBits));  
     Fctrs[BC] = (1 << (PIX_GRID-nBlueBits));
 
-    const InpRmp0 = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
-    const InpRmp = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
-    for(let k = 0; k < 2; k++) {
-        for(let j = 0; j < 3; j++) {
+    var InpRmp0 = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
+    var InpRmp = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
+    for (var k = 0; k < 2; k++) {
+        for (var j = 0; j < 3; j++) {
             _OutRmpPnts[j] = _OutRmpPnts[j] || [];
             InpRmp0[j][k] = InpRmp[j][k] = _OutRmpPnts[j][k] = _InpRmpPnts[j][k];
         }
@@ -1064,91 +1067,91 @@ function Refine3D(_OutRmpPnts, //[NUM_CHANNELS][NUM_ENDPOINTS],
 
     // make ramp endpoints the way they'll going to be decompressed
     // plus check whether the ramp is flat
-    let Eq;
-    const WkRmpPts = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
+    var Eq;
+    var WkRmpPts = [[], [], [], []]; //[NUM_CHANNELS][NUM_ENDPOINTS];
     Eq = MkWkRmpPts(WkRmpPts, InpRmp, nRedBits, nGreenBits, nBlueBits);
 
     // build ramp for all 3 colors
     BldRmp(Rmp, WkRmpPts, dwNumPoints); 
 
     // clusterize for the current ramp
-    let bestE = ClstrErr(Blk, _Rpt, Rmp, _NmrClrs, dwNumPoints, Eq, _pfWeights);
+    var bestE = ClstrErr(Blk, _Rpt, Rmp, _NmrClrs, dwNumPoints, Eq, _pfWeights);
     if(bestE == 0.0 || !nRefineSteps)    // if exact, we've done
         return bestE;
 
     // Jitter endpoints in each direction
-    const nRefineStart = 0 - (Math.min(nRefineSteps, 8));
-    const nRefineEnd = Math.min(nRefineSteps, 8);
-    for(let nJitterG0 = nRefineStart; nJitterG0 <= nRefineEnd; nJitterG0++)
+    var nRefineStart = 0 - (Math.min(nRefineSteps, 8));
+    var nRefineEnd = Math.min(nRefineSteps, 8);
+    for (var nJitterG0 = nRefineStart; nJitterG0 <= nRefineEnd; nJitterG0++)
     {
         InpRmp[GC][0] = Math.min(Math.max(InpRmp0[GC][0] + nJitterG0 * Fctrs[GC], 0.0), 255.0);
-        for(let nJitterG1 = nRefineStart; nJitterG1 <= nRefineEnd; nJitterG1++)
+        for (var nJitterG1 = nRefineStart; nJitterG1 <= nRefineEnd; nJitterG1++)
         {
             InpRmp[GC][1] = Math.min(Math.max(InpRmp0[GC][1] + nJitterG1 * Fctrs[GC], 0.0), 255.0);
             Eq = MkWkRmpPts(WkRmpPts, InpRmp, nRedBits, nGreenBits, nBlueBits);
             BldClrRmp(Rmp[GC], WkRmpPts[GC], dwNumPoints);
 
-            const RmpErrG = []; //[MAX_POINTS][MAX_BLOCK];
-            for(let i = 0; i < _NmrClrs; i++)
+            var RmpErrG = []; //[MAX_POINTS][MAX_BLOCK];
+            for (var i = 0; i < _NmrClrs; i++)
             {
-                for(let r = 0; r < dwNumPoints; r++)
+                for (var r = 0; r < dwNumPoints; r++)
                 {
-                    const DistG = (Rmp[GC][r] - Blk[i][GC]);
+                    var DistG = (Rmp[GC][r] - Blk[i][GC]);
                     RmpErrG[r] = RmpErrG[r] || [];
                     RmpErrG[r][i] = DistG * DistG * fWeightGreen;
                 }
             }
             
-            for(let nJitterB0 = nRefineStart; nJitterB0 <= nRefineEnd; nJitterB0++)
+            for (var nJitterB0 = nRefineStart; nJitterB0 <= nRefineEnd; nJitterB0++)
             {
                 InpRmp[BC][0] = Math.min(Math.max(InpRmp0[BC][0] + nJitterB0 * Fctrs[BC], 0.0), 255.0);
-                for(let nJitterB1 = nRefineStart; nJitterB1 <= nRefineEnd; nJitterB1++)
+                for (var nJitterB1 = nRefineStart; nJitterB1 <= nRefineEnd; nJitterB1++)
                 {
                     InpRmp[BC][1] = Math.min(Math.max(InpRmp0[BC][1] + nJitterB1 * Fctrs[BC], 0.0), 255.0);
                     Eq = MkWkRmpPts(WkRmpPts, InpRmp, nRedBits, nGreenBits, nBlueBits);
                     BldClrRmp(Rmp[BC], WkRmpPts[BC], dwNumPoints);
 
-                    const RmpErr = []; //[MAX_POINTS][MAX_BLOCK];
-                    for(let i=0; i < _NmrClrs; i++)
+                    var RmpErr = []; //[MAX_POINTS][MAX_BLOCK];
+                    for (var i=0; i < _NmrClrs; i++)
                     {
-                        for(let r = 0; r < dwNumPoints; r++)
+                        for (var r = 0; r < dwNumPoints; r++)
                         {
-                            const DistB = (Rmp[BC][r] - Blk[i][BC]);
+                            var DistB = (Rmp[BC][r] - Blk[i][BC]);
                             RmpErr[r] = RmpErr[r] || [];
                             RmpErr[r][i] = RmpErrG[r][i] + DistB * DistB * fWeightBlue;
                         }
                     }
 
-                    for(let nJitterR0 = nRefineStart; nJitterR0 <= nRefineEnd; nJitterR0++)
+                    for (var nJitterR0 = nRefineStart; nJitterR0 <= nRefineEnd; nJitterR0++)
                     {
                         InpRmp[RC][0] = Math.min(Math.max(InpRmp0[RC][0] + nJitterR0 * Fctrs[RC], 0.0), 255.0);
-                        for(let nJitterR1 = nRefineStart; nJitterR1 <= nRefineEnd; nJitterR1++)
+                        for (var nJitterR1 = nRefineStart; nJitterR1 <= nRefineEnd; nJitterR1++)
                         {
                             InpRmp[RC][1] = Math.min(Math.max(InpRmp0[RC][1] + nJitterR1 * Fctrs[RC], 0.0), 255.0);
                             Eq = MkWkRmpPts(WkRmpPts, InpRmp, nRedBits, nGreenBits, nBlueBits);
                             BldClrRmp(Rmp[RC], WkRmpPts[RC], dwNumPoints);
 
                             // compute cumulative error
-                            let mse = 0.0;
-                            const rmp_l = (Eq) ? 1 : dwNumPoints;
-                            for(let k = 0; k < _NmrClrs; k++)
+                            var mse = 0.0;
+                            var rmp_l = (Eq) ? 1 : dwNumPoints;
+                            for (var k = 0; k < _NmrClrs; k++)
                             {
-                                let MinErr = 10000000.0;
-                                for(let r = 0; r < rmp_l; r++)
+                                var MinErr = 10000000.0;
+                                for (var r = 0; r < rmp_l; r++)
                                 {
-                                    const Dist = (Rmp[RC][r] - Blk[k][RC]);
-                                    const Err = RmpErr[r][k] + Dist * Dist * fWeightRed;
+                                    var Dist = (Rmp[RC][r] - Blk[k][RC]);
+                                    var Err = RmpErr[r][k] + Dist * Dist * fWeightRed;
                                     MinErr = Math.min(MinErr, Err);
                                 }
-                                mse += MinErr * _Rpt[k];
+                                mse = mse + (MinErr * _Rpt[k]);
                             }
 
                             // save if we achieve better result
                             if(mse < bestE)
                             {
                                 bestE = mse;
-                                for(let k = 0; k < 2; k++)
-                                    for(let j = 0; j < 3; j++)
+                                for (var k = 0; k < 2; k++)
+                                    for (var j = 0; j < 3; j++)
                                         _OutRmpPnts[j][k] = InpRmp[j][k];
                             }
                         }
@@ -1176,7 +1179,7 @@ function RampSrchW(_Blck, //[MAX_BLOCK],
     const rstep = 1.0 / step;
     
     let v, d;
-    for(let i=0; i < _NmbClrs; i++)
+    for(var i = 0; i < _NmbClrs; i++)
     {
         // Work out which value in the block this select
         const del = _Blck[i] - _min_ex;
@@ -1194,7 +1197,7 @@ function RampSrchW(_Blck, //[MAX_BLOCK],
         d = d * d;
         //err = (_Rpt[i] * d) + _BlckErr[i];
         //error += err;
-        error += (_Rpt[i] * d) + _BlckErr[i];
+        error = error + (_Rpt[i] * d) + _BlckErr[i];
         if(_maxerror < error)
         {
             error = _maxerror;
@@ -1215,14 +1218,14 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
                   _inpBlk, //[MAX_BLOCK][NUM_CHANNELS],
                   _inpRpt, //[MAX_BLOCK],
                   nDimensions, nNumColors) {
-    const Crrl = [];
-    const RGB2 = [];
+    var Crrl = [];
+    var RGB2 = [];
     fLineDirection[0] = fLineDirection[1] = fLineDirection[2] = RGB2[0] = RGB2[1] = RGB2[2] = 
         Crrl[0] = Crrl[1] = Crrl[2] = fBlockCenter[0] = fBlockCenter[1] = fBlockCenter[2] = 0.0;
 
     // sum position of all points
-    let fNumPoints = 0.0;
-    for (let i = 0; i < nNumColors; i++) {
+    var fNumPoints = 0.0;
+    for (var i = 0; i < nNumColors; i++) {
         fBlockCenter[0] += _inpBlk[i][0] * _inpRpt[i];
         fBlockCenter[1] += _inpBlk[i][1] * _inpRpt[i];
         fBlockCenter[2] += _inpBlk[i][2] * _inpRpt[i];
@@ -1234,7 +1237,7 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
     fBlockCenter[1] /= fNumPoints;
     fBlockCenter[2] /= fNumPoints;
 
-    for(let i = 0; i < nNumColors; i++)
+    for (var i = 0; i < nNumColors; i++)
     {
         _outBlk[i] = _outBlk[i] || [];
         // calculate output block as offsets around block center
@@ -1245,7 +1248,7 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
         // compute correlation matrix
         // RGB2 = sum of ((distance from point from center) squared)
         // Crrl = ???????. Seems to be be some calculation based on distance from point center in two dimensions
-        for(let j = 0; j < nDimensions; j++)
+        for (var j = 0; j < nDimensions; j++)
         {
             RGB2[j] += _outBlk[i][j] * _outBlk[i][j] * _inpRpt[i];
             Crrl[j] += _outBlk[i][j] * _outBlk[i][(j+1)%3] * _inpRpt[i];
@@ -1253,11 +1256,10 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
     }
 
     // if set's diameter is small
-    let i0 = 0, i1 = 1;
-    let mxRGB2 = 0.0;
-    let k = 0, j = 0;
-    const fEPS = fNumPoints * EPS;
-    for(let k = 0, j = 0; j < 3; j++)
+    var i0 = 0, i1 = 1;
+    var mxRGB2 = 0.0;
+    var fEPS = fNumPoints * EPS;
+    for (var k = 0, j = 0; j < 3; j++)
     {
         if(RGB2[j] >= fEPS)
             k++;
@@ -1271,9 +1273,9 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
         }
     }
 
-    const fEPS2 = fNumPoints * EPS2;
-    let _pbSmall = true;
-    for(let j = 0; j < 3; j++)
+    var fEPS2 = fNumPoints * EPS2;
+    var _pbSmall = true;
+    for (var j = 0; j < 3; j++)
         _pbSmall = _pbSmall && (RGB2[j] < fEPS2);
 
     if(_pbSmall) // all are very small to avoid division on the small determinant
@@ -1283,16 +1285,16 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
         fLineDirection[i0]= 1.0;
     } else if(k == 2) { // really only 2 dimensions
         i1 = (RGB2[(i0+1)%3] > 0.0) ? (i0+1)%3 : (i0+2)%3;
-        const Crl = (i1 == (i0+1)%3) ? Crrl[i0] : Crrl[(i0+2)%3];
+        var Crl = (i1 == (i0+1)%3) ? Crrl[i0] : Crrl[(i0+2)%3];
         fLineDirection[i1] = Crl/ RGB2[i0];
-        fLineDirection[i0]= 1.0;
+        fLineDirection[i0] = 1.0;
     } else {
-        const maxDet = 100000.0;
-        const Cs = [];
+        var maxDet = 100000.0;
+        var Cs = [];
         // select max det for precision
-        for(let j = 0; j < nDimensions; j++)
+        for (var j = 0; j < nDimensions; j++)
         {
-            const Det = RGB2[j] * RGB2[(j+1)%3] - Crrl[j] * Crrl[j];
+            var Det = RGB2[j] * RGB2[(j+1)%3] - Crrl[j] * Crrl[j];
             Cs[j] = Math.abs(Crrl[j]/Math.sqrt(RGB2[j] * RGB2[(j+1)%3]));
             if(maxDet < Det)
             {
@@ -1306,9 +1308,9 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
         //  |  A   B |       |  C  -B |
         //  |  B   C |  =>   | -B   A |
         //  --      --       --     --
-        const mtrx1 = [[], []];
-        const vc1 = [];
-        const vc = [];
+        var mtrx1 = [[], []];
+        var vc1 = [];
+        var vc = [];
         vc1[0] = Crrl[(i0 + 2) %3];
         vc1[1] = Crrl[(i0 + 1) %3];
         // C
@@ -1330,10 +1332,13 @@ function FindAxis(_outBlk, //[MAX_BLOCK][NUM_CHANNELS],
     }
 
     // normalize direction vector
-    let Len = fLineDirection[0] * fLineDirection[0] + fLineDirection[1] * fLineDirection[1] + fLineDirection[2] * fLineDirection[2];
-    Len = Math.sqrt(Len);
+    var Len = Math.sqrt(
+      fLineDirection[0] * fLineDirection[0] +
+      fLineDirection[1] * fLineDirection[1] +
+      fLineDirection[2] * fLineDirection[2]
+    );
 
-    for(let j = 0; j < 3; j++) {
+    for (var j = 0; j < 3; j++) {
         fLineDirection[j] = (Len > 0.0) ? fLineDirection[j] / Len : 0.0;
     }
 
@@ -1369,7 +1374,7 @@ function Clstr(block_32, //[MAX_BLOCK],
     const dwAlphaThreshold = _nAlphaThreshold;
     //CODECFLOAT Blk[MAX_BLOCK][NUM_CHANNELS];
     const Blk = [];
-    for(let i = 0; i < dwBlockSize; i++)
+    for (var i = 0; i < dwBlockSize; i++)
     {
         Blk[i] = Blk[i] || [];
         Blk[i][BC] = ((block_32[i] & 0xff0000) >> 16);
@@ -1411,7 +1416,7 @@ function MkWkRmpPts(_OutRmpPts, //[NUM_CHANNELS][NUM_ENDPOINTS],
 
     //_bEq = true;
     // find whether input ramp is flat
-    //for(let j = 0; j < 3; j++) {
+    //for (var j = 0; j < 3; j++) {
     //   _bEq  = _bEq && (_InpRmpPts[j][0] == _InpRmpPts[j][1]);
     //}
     _bEq = (_InpRmpPts[0][0] == _InpRmpPts[0][1]) &&
@@ -1419,10 +1424,10 @@ function MkWkRmpPts(_OutRmpPts, //[NUM_CHANNELS][NUM_ENDPOINTS],
            (_InpRmpPts[2][0] == _InpRmpPts[2][1]);
 
     // end points on the integer grid
-    for(let j = 0; j <3; j++)
+    for (var j = 0; j <3; j++)
     {
         /*
-        for(let k = 0; k <2; k++)
+        for (var k = 0; k <2; k++)
         {
             // Apply the lower bit replication to give full dynamic range
             _OutRmpPts[j][k] = _InpRmpPts[j][k] + Math.floor(_InpRmpPts[j][k] / Fctrs[j]);
@@ -1447,7 +1452,7 @@ function BldRmp(_Rmp, //[NUM_CHANNELS][MAX_POINTS],
                 dwNumPoints)
 {
     /*
-    for(let j = 0; j < 3; j++) {
+    for (var j = 0; j < 3; j++) {
         BldClrRmp(_Rmp[j], _InpRmp[j], dwNumPoints);
     }
     */
@@ -1465,7 +1470,7 @@ function BldClrRmp(_Rmp, //[MAX_POINTS],
     _Rmp[dwNumPoints - 1] = _InpRmp[1];
     if(dwNumPoints % 2)
         _Rmp[dwNumPoints] = 1000000.0; // for 3 point ramp; not to select the 4th point as min
-    for(let e = 1; e < dwNumPoints - 1; e++) {
+    for (var e = 1; e < dwNumPoints - 1; e++) {
         _Rmp[e] = Math.floor(
             ((_Rmp[0] * (dwNumPoints - 1 - e)) +
              (_Rmp[dwNumPoints - 1] * e) +
@@ -1484,17 +1489,17 @@ function ClstrErr(_Blk, //[MAX_BLOCK][NUM_CHANNELS],
                   _NmbClrs, _blcktp, 
                   _ConstRamp, _pfWeights)
 {
-    let fError = 0.0;
+    var fError = 0.0;
     const rmp_l = (_ConstRamp) ? 1 : _blcktp;
 
     // For each colour in the original block, find the closest cluster
     // and compute the comulative error
-    for(let i=0; i<_NmbClrs; i++)
+    for (var i=0; i<_NmbClrs; i++)
     {
         let fShortest = 99999999999.0;
 
         const pfWeights = _pfWeights || [1.0, 1.0, 1.0, 1.0];
-        for(let r=0; r < rmp_l; r++)
+        for (var r=0; r < rmp_l; r++)
         {
             // calculate the distance for each component
             const fDistance = (_Blk[i][RC] - _Rmp[RC][r]) * (_Blk[i][RC] - _Rmp[RC][r]) * pfWeights[0] + 
@@ -1524,7 +1529,7 @@ function ClstrIntnl(_Blk, //[MAX_BLOCK][NUM_CHANNELS],
 
     // For each colour in the original block assign it
     // to the closest cluster and compute the cumulative error
-    for(let i = 0; i< dwBlockSize; i++)
+    for (var i = 0; i< dwBlockSize; i++)
     {
         if(_bUseAlpha && _Blk[i][AC] == 0) {
             _Indxs[i] = dwNumPoints;
@@ -1534,7 +1539,7 @@ function ClstrIntnl(_Blk, //[MAX_BLOCK][NUM_CHANNELS],
             let shortest = 99999999999.0;
             let shortestIndex = 0;
             const pfWeights = _pfWeights || [1, 1, 1, 1];
-            for(let r = 0; r < rmp_l; r++)
+            for (var r = 0; r < rmp_l; r++)
             {
                 // calculate the distance for each component
                 const distance =    (_Blk[i][RC] - _Rmp[RC][r]) * (_Blk[i][RC] - _Rmp[RC][r]) * pfWeights[0] + 
@@ -1581,15 +1586,16 @@ function CalculateColourWeightings(block) {
         return null;
 
     //XXX RESET HERE BECAUSE WE DON'T HAVE A WAY TO SET THEM CURRENTLY
-    const m_fChannelWeights = options.m_fChannelWeights;
+    var m_fChannelWeights = options.m_fChannelWeights;
     m_fChannelWeights[0] = m_fBaseChannelWeights[0];
     m_fChannelWeights[1] = m_fBaseChannelWeights[1];
     m_fChannelWeights[2] = m_fBaseChannelWeights[2];
 
     if(options.m_bUseAdaptiveWeighting) {
-        let averageR = 0.0, averageG = 0.0, averageB = 0.0;
+        var averageR = 0.0, averageG = 0.0, averageB = 0.0;
+        var k = 0;
 
-        for(let k = 0; k < MAX_BLOCK; k+=4)
+        for(k = 0; k < MAX_BLOCK; k += 4)
         {
             averageB += block[k + 2];
             averageG += block[k + 1];
@@ -1601,7 +1607,7 @@ function CalculateColourWeightings(block) {
         averageB /= BLOCK_SIZE_4X4;
 
         // Now skew the colour weightings based on the gravity center of the block
-        const largest = Math.max(Math.max(averageR, averageG), averageB);
+        var largest = Math.max(averageR, averageG, averageB);
 
         if(largest > 0)
         {
@@ -1613,6 +1619,7 @@ function CalculateColourWeightings(block) {
             averageR = averageG = averageB = 1.0;
 
         // Scale weightings back up to 1.0f
+	var fWeightScale = 0.0;
         fWeightScale = 1.0 / (m_fBaseChannelWeights[0] + m_fBaseChannelWeights[1] + m_fBaseChannelWeights[2]);
         m_fChannelWeights[0] *= m_fBaseChannelWeights[0] * fWeightScale;
         m_fChannelWeights[1] *= m_fBaseChannelWeights[1] * fWeightScale;
@@ -1648,17 +1655,17 @@ function CompBlock1X(_Blk,
     }
 
     // convert 8-bit alpha values to floating point
-    fBlk = [];
-    for (let i in _Blk) {
+    var fBlk = [];
+    for (var i in _Blk) {
         fBlk[i] = _Blk[i] / 255.0;
     }
 
     // this one makes the bulk of the work
-    const Ramp = []; //[NUM_ENDPOINTS];
+    var Ramp = []; //[NUM_ENDPOINTS];
     CompBlock1(Ramp, fBlk, dwBlockSize, dwNumPoints, bFixedRampPoints, _intPrec, _fracPrec, _bFixedRamp, _bUseSSE2);
 
     // final clusterization applied
-    const fError = Clstr1(pcIndices, fBlk, Ramp, dwBlockSize, dwNumPoints, bFixedRampPoints, _intPrec, _fracPrec, _bFixedRamp);
+    var fError = Clstr1(pcIndices, fBlk, Ramp, dwBlockSize, dwNumPoints, bFixedRampPoints, _intPrec, _fracPrec, _bFixedRamp);
     nEndpoints[0] = Ramp[0] & 0xff;
     nEndpoints[1] = Ramp[1] & 0xff;
 
@@ -1678,15 +1685,15 @@ function CompBlock1(_RmpPnts, //[NUM_ENDPOINTS],
     const IntFctr = (1 << _IntPrc);
 //    CODECFLOAT FracFctr = (CODECFLOAT)(1 << _FracPrc);
 
-    const afUniqueValues = [];//[MAX_BLOCK];
-    const afValueRepeats = [];//[MAX_BLOCK];
-    for(let i = 0; i < MAX_BLOCK; i++)
+    var afUniqueValues = [];//[MAX_BLOCK];
+    var afValueRepeats = [];//[MAX_BLOCK];
+    for (var i = 0; i < MAX_BLOCK; i++)
         afUniqueValues[i] = afValueRepeats[i] = 0.0;
 
 // For each unique value we compute the number of it appearances.
-    const fBlk = _Blk.slice(0);
+    var fBlk = _Blk.slice(0);
     fBlk.sort();
-    //const fBlk = [];//[MAX_BLOCK];
+    //var fBlk = [];//[MAX_BLOCK];
     //std::memcpy(fBlk, _Blk, _Nmbr * sizeof(CODECFLOAT));
 
     // sort the input
@@ -1694,17 +1701,17 @@ function CompBlock1(_RmpPnts, //[NUM_ENDPOINTS],
             // mechanism for providing values by reference to Refine1
     
 
-    let new_p = -2.0;
+    var new_p = -2.0;
 
-    let N0s = 0, N1s = 0;
-    let dwUniqueValues = 0;
+    var N0s = 0, N1s = 0;
+    var dwUniqueValues = 0;
     //afUniqueValues[0] = 0.0;
 
-    let requiresCalculation = true;
+    var requiresCalculation = true;
 
     if(bFixedRampPoints)
     {
-        for(let i = 0; i < _Nmbr; i++)
+        for (var i = 0; i < _Nmbr; i++)
         {
             if(new_p != fBlk[i])
             {
@@ -1753,7 +1760,7 @@ function CompBlock1(_RmpPnts, //[NUM_ENDPOINTS],
     }
     else
     {
-        for(let i = 0; i < _Nmbr; i++)
+        for (var i = 0; i < _Nmbr; i++)
         {
             if(new_p != fBlk[i])
             {
@@ -1778,22 +1785,22 @@ function CompBlock1(_RmpPnts, //[NUM_ENDPOINTS],
         }
     }
 
-    const _INT_GRID = _bFixedRamp && _FracPrc == 0;
+    var _INT_GRID = _bFixedRamp && _FracPrc == 0;
 
     if ( requiresCalculation )
     {
-        let min_ex  = afUniqueValues[0];
-        let max_ex  = afUniqueValues[dwUniqueValues - 1];
-        const min_bnd = 0, max_bnd = 1.;
-        let min_r = min_ex, max_r = max_ex;
-        let gbl_l = 0, gbl_r = 0;
-        const cntr = (min_r + max_r)/2;
+        var min_ex  = afUniqueValues[0];
+        var max_ex  = afUniqueValues[dwUniqueValues - 1];
+        var min_bnd = 0, max_bnd = 1.0;
+        var min_r = min_ex, max_r = max_ex;
+        var gbl_l = 0, gbl_r = 0;
+        var cntr = (min_r + max_r)/2;
 
-        let gbl_err = MAX_ERROR;
+        var gbl_err = MAX_ERROR;
         // Trying to avoid unnecessary calculations. Heuristics: after some analisis it appears
         // that in integer case, if the input interval not more then 48 we won't get much better
 
-        const wantsSearch = !( _INT_GRID && max_ex - min_ex <= 48.0 / IntFctr );
+        var wantsSearch = !( _INT_GRID && max_ex - min_ex <= 48.0 / IntFctr );
 
         if ( wantsSearch )
         {
@@ -1801,15 +1808,15 @@ function CompBlock1(_RmpPnts, //[NUM_ENDPOINTS],
             // 1. take the vicinities of both low and high bound of the input interval.
             // 2. setup some search step
             // 3. find the new low and high bound which provides an (sub) optimal (infinite precision) clusterization.
-            const gbl_llb = (min_bnd >  min_r - GBL_SCH_EXT) ? min_bnd : min_r - GBL_SCH_EXT;
-            const gbl_rrb = (max_bnd <  max_r + GBL_SCH_EXT) ? max_bnd : max_r + GBL_SCH_EXT;
-            const gbl_lrb = (cntr <  min_r + GBL_SCH_EXT) ? cntr : min_r + GBL_SCH_EXT;
-            const gbl_rlb = (cntr >  max_r - GBL_SCH_EXT) ? cntr : max_r - GBL_SCH_EXT;
-            for(let step_l = gbl_llb; step_l < gbl_lrb ; step_l+= GBL_SCH_STEP)
+            var gbl_llb = (min_bnd >  min_r - GBL_SCH_EXT) ? min_bnd : min_r - GBL_SCH_EXT;
+            var gbl_rrb = (max_bnd <  max_r + GBL_SCH_EXT) ? max_bnd : max_r + GBL_SCH_EXT;
+            var gbl_lrb = (cntr <  min_r + GBL_SCH_EXT) ? cntr : min_r + GBL_SCH_EXT;
+            var gbl_rlb = (cntr >  max_r - GBL_SCH_EXT) ? cntr : max_r - GBL_SCH_EXT;
+            for (var step_l = gbl_llb; step_l < gbl_lrb ; step_l+= GBL_SCH_STEP)
             {
-                for(let step_r = gbl_rrb; gbl_rlb <= step_r; step_r-=GBL_SCH_STEP)
+                for (var step_r = gbl_rrb; gbl_rlb <= step_r; step_r-=GBL_SCH_STEP)
                 {
-                    const sch_err = RmpSrch1(afUniqueValues, afValueRepeats, gbl_err, step_l, step_r, dwUniqueValues, dwNumPoints);
+                    var sch_err = RmpSrch1(afUniqueValues, afValueRepeats, gbl_err, step_l, step_r, dwUniqueValues, dwNumPoints);
                     if(sch_err < gbl_err)
                     {
                         gbl_err = sch_err;
@@ -1824,13 +1831,13 @@ function CompBlock1(_RmpPnts, //[NUM_ENDPOINTS],
         }
 
         // mechanism for providing values by reference to Refine1
-        const minmax_r = {
+        var minmax_r = {
             min: min_r, max: max_r
         };
 
         // This is a refinement call. The function tries to make several small stretches or squashes to
         // minimize quantization error.
-        const m_step = LCL_SCH_STEP/ IntFctr;
+        var m_step = LCL_SCH_STEP/ IntFctr;
         fMaxError = Refine1(afUniqueValues, afValueRepeats, gbl_err, minmax_r, m_step, min_bnd, max_bnd, dwUniqueValues,
                         dwNumPoints, _bUseSSE2);
 
@@ -1852,13 +1859,13 @@ and step equal 1.
         {
             m_step = 1.0;
             gbl_err = MAX_ERROR;
-            for(let i = 0; i < dwUniqueValues; i++)
+            for (var i = 0; i < dwUniqueValues; i++)
                 afUniqueValues[i] *= (IntFctr - 1);
 
             max_ex = min_ex = Math.floor(min_ex + 0.5);
 
             // mechanism for providing values by reference to Refine1
-            const minmax_ex = {
+            var minmax_ex = {
                 min: min_ex, max: max_ex
             };
 
@@ -1901,7 +1908,7 @@ function RmpSrch1(_Blk, //[MAX_BLOCK],
     const step_h = step * 0.5;
     const rstep = 1.0 / step;
 
-    for(let i = 0; i< _NmbrClrs; i++)
+    for (var i = 0; i< _NmbrClrs; i++)
     {
         let v;
         // Work out which value in the block this select
@@ -1916,13 +1923,13 @@ function RmpSrch1(_Blk, //[MAX_BLOCK],
 
         // And accumulate the error
         const del2 = (_Blk[i] - v);
-        error += del2 * del2 * _Rpt[i];
+        error = error + (del2 * del2 * _Rpt[i]);
 
         // if we've already lost to the previous step bail out
         if(_maxerror < error)
         {
-        error  = _maxerror;
-        break;
+            error  = _maxerror;
+            break;
         }
     }
     return error;
@@ -2002,10 +2009,10 @@ function Clstr1(pcIndices,
                 _ramp, //[NUM_ENDPOINTS],
                 _NmbrClrs, nNumPoints, bFixedRampPoints, _intPrec, _fracPrec, _bFixedRamp)
 {
-    let Err = 0.0;
-    const alpha = [];//[MAX_POINTS];
+    var Err = 0.0;
+    var alpha = [];//[MAX_POINTS];
 
-    for(let i = 0; i < _NmbrClrs; i++)
+    for (var i = 0; i < _NmbrClrs; i++)
         pcIndices[i] = 0;
 
     if(_ramp[0] == _ramp[1])
@@ -2022,23 +2029,23 @@ function Clstr1(pcIndices,
     if(bFixedRampPoints)
         nNumPoints += 2;
 
-    const OverIntFctr = 1.0 / ((1 << _intPrec) - 1.0);
-    for(let i = 0; i < nNumPoints; i++)
+    var OverIntFctr = 1.0 / ((1 << _intPrec) - 1.0);
+    for (var i = 0; i < nNumPoints; i++)
        alpha[i] *= OverIntFctr;
 
     // For each colour in the original block, calculate its weighted
     // distance from each point in the original and assign it
     // to the closest cluster
-    for(let i = 0; i < _NmbrClrs; i++)
+    for (var i = 0; i < _NmbrClrs; i++)
     {
-        let shortest = 10000000.0;
+        var shortest = 10000000.0;
 
         // Get the original alpha
-        const acur = _blockIn[i];
+        var acur = _blockIn[i];
 
-        for(let j = 0; j < nNumPoints; j++)
+        for (var j = 0; j < nNumPoints; j++)
         {
-            const adist = Math.pow(acur - alpha[j], 2);
+            var adist = Math.pow(acur - alpha[j], 2);
             //adist *= adist;
 
             if(adist < shortest)
@@ -2048,7 +2055,7 @@ function Clstr1(pcIndices,
             }
         }
 
-        Err += shortest;
+        Err = Err + shortest;
     }
 
     return Err;
@@ -2090,7 +2097,7 @@ function GetRmp1(_rampDat, //[MAX_POINTS],
 
     if(_bFixedRamp)
     {
-        for(let i = 0; i < nNumPoints; i++)
+        for (var i = 0; i < nNumPoints; i++)
         {
             _rampDat[i] = Math.floor(_rampDat[i] + 0.5);
             _rampDat[i] /= FracFctr;
@@ -2104,11 +2111,11 @@ function BldRmp1(_Rmp, //[MAX_POINTS],
                  nNumPoints)
 {
     // for 3 point ramp; not to select the 4th point in min
-    for(let e = nNumPoints; e < MAX_POINTS; e++)
+    for (var e = nNumPoints; e < MAX_POINTS; e++)
         _Rmp[e] = 100000.0;
 
     _Rmp[0] = _InpRmp[0];
     _Rmp[1] = _InpRmp[1];
-    for(let e = 1; e < nNumPoints - 1; e++)
+    for (var e = 1; e < nNumPoints - 1; e++)
         _Rmp[e + 1] = (_Rmp[0] * (nNumPoints - 1 - e) + _Rmp[1] * e)/(nNumPoints - 1);
 }
