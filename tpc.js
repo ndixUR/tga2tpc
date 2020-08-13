@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const dxt = require('dxt-js');
+const cmpntr = require('./compressonator');
 const EventEmitter = require('events');
 
 //XXX UI STUFF
@@ -853,7 +854,14 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     //console.log(Buffer.from(mipmap.buffer));
     let compress;
     try {
-      compress = dxt.compress(Buffer.from(mipmap.buffer), width, height, compression_flags);
+      //compress = dxt.compress(Buffer.from(mipmap.buffer), width, height, compression_flags);
+      compress = cmpntr.compress(mipmap, width, height, {
+        UseChannelWeighting: true,
+        UseAdaptiveWeighting: true,
+        CompressionSpeed: cmpntr.CMP_Speed_Normal,
+        '3DRefinement': false,
+        RefinementSteps: 1
+      });
     } catch (err) {
       console.log(err);
       return cb({message: 'compression failed', detail: 'DXT compress failed.'});
