@@ -178,6 +178,18 @@ function prepare(texture) {
     }
   }
 
+  if (!compressionRequested(image.formatRaw) &&
+      texture.pixelDepth == 24) {
+    // 24-bit TGA, update pixel format and encoding
+    settings('encoding',  kEncodingRGB);
+    settings('format',    kPixelFormatRGB);
+    settings('formatRaw', kPixelFormatRGB8);
+  } else if (!compressionRequested(image.formatRaw) &&
+             texture.pixelDepth == 8) {
+    // 8-bit TGA, assume grayscale bumpmap
+    settings('compression', 'grey');
+  }
+
   image.mipMapCount = (
     Math.log(Math.max(image.width, image.height)
   ) / Math.log(2)) + 1;
@@ -833,10 +845,10 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       pixel_bytes = 1;
     }
     const temp2 = new Uint8ClampedArray((mipmap.byteLength / 4) * pixel_bytes);
-    temp_offset = 0;
+    var temp_offset = 0;
     for (let y = 0; y < height; y++) {
       const row_begin = (y * width) * 4;
-      console.log(`${row_begin} @${temp_offset}`);
+      //console.log(`${row_begin} @${temp_offset}`);
       for (let x = 0; x < width; x++) {
         // start position is based on 4-byte offset
         const pixel_begin = row_begin + (x * 4);
