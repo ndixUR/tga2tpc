@@ -36,10 +36,13 @@ div.preview > canvas {
 
 ul.settings-menu a {
 }
-ul.settings-menu a.enabled > .glyphicon {
+ul.settings-menu a.enabled > .glyphicon,
+ul.compress-menu a.enabled > .glyphicon {
   visibility: visible;
 }
-ul.settings-menu a > .glyphicon {
+ul.settings-menu a > .glyphicon,
+ul.compress-menu a > .glyphicon
+{
   visibility: hidden;
 }
 

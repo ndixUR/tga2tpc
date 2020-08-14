@@ -46,6 +46,13 @@ kPixelFormatDXT1   = 'GL_COMPRESSED_RGB_S3TC_DXT1_EXT',
 kPixelFormatDXT3   = 'GL_COMPRESSED_RGBA_S3TC_DXT3_EXT',
 kPixelFormatDXT5   = 'GL_COMPRESSED_RGBA_S3TC_DXT5_EXT';
 
+const
+CMP_PROFILE_VLQ     = 'super_fast';
+CMP_PROFILE_LQ      = 'fast';
+CMP_PROFILE_DEFAULT = 'normal';
+CMP_PROFILE_HQ      = 'slow';
+CMP_PROFILE_VHQ     = 'ultra';
+
 let image = {
   //dataSize:      0,
   dataSize:      0,
@@ -67,7 +74,8 @@ let image = {
   interpolation: false,
   flip_y:        false,
   flip_x:        false,
-  texture:       null
+  texture:       null,
+  compressor:    CMP_PROFILE_DEFAULT
 };
 
 let feedback = new EventEmitter();
@@ -113,6 +121,8 @@ function cleanImage() {
   image.layerDim        = { width: 0, height: 0 };
 
   image.stat = {};
+
+  image.compressor = CMP_PROFILE_DEFAULT;
 
   if (image.layers) {
     for (let idx in image.layers) {
@@ -841,28 +851,52 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
 
   let img_buf;
   if (compressionRequested(image.formatRaw)) {
+    const cmp_opts = {};
     let compression_flags = dxt.flags.ColourIterativeClusterFit |
                             dxt.flags.ColourMetricPerceptual;
     if (image.formatRaw == kPixelFormatDXT1) {
       compression_flags |= dxt.flags.DXT1;
+      cmp_opts.encoding = cmpntr.ENCODING_DXT1;
     } else if (image.formatRaw == kPixelFormatDXT3) {
       compression_flags |= dxt.flags.DXT3;
     } else if (image.formatRaw == kPixelFormatDXT5) {
       compression_flags |= dxt.flags.DXT5;
+      cmp_opts.encoding = cmpntr.ENCODING_DXT5;
     }
     //let compress = dxt.compress(mipmap.buffer, width, height, compression_flags);
     //console.log(Buffer.from(mipmap.buffer));
+
+    // default settings for compressonator DXT compression engine
+    cmp_opts.UseChannelWeighting = true;
+    cmp_opts.UseAdaptiveWeighting = true;
+    cmp_opts.CompressionSpeed = cmpntr.CMP_Speed_Normal;
+    cmp_opts['3DRefinement'] = false;
+    cmp_opts.RefinementSteps = 1;
+    // profile-based settings for compressonator
+    // note: VLQ profile uses old libsquish compressor
+    switch(image.compressor) {
+      case CMP_PROFILE_LQ:
+        cmp_opts.CompressionSpeed = cmpntr.CMP_Speed_Fast;
+        break;
+      case CMP_PROFILE_DEFAULT:
+        cmp_opts.RefinementSteps = 2;
+        break;
+      case CMP_PROFILE_HQ:
+        cmp_opts.RefinementSteps = 6;
+        break;
+      case CMP_PROFILE_VHQ:
+        cmp_opts['3DRefinement'] = true;
+        cmp_opts.RefinementSteps = 2;
+        break;
+    }
+
     let compress;
     try {
-      //compress = dxt.compress(Buffer.from(mipmap.buffer), width, height, compression_flags);
-      compress = cmpntr.compress(mipmap, width, height, {
-        UseChannelWeighting: true,
-        UseAdaptiveWeighting: true,
-        CompressionSpeed: cmpntr.CMP_Speed_Normal,
-        '3DRefinement': false,
-        RefinementSteps: 1,
-        encoding: image.formatRaw == kPixelFormatDXT5 ? cmpntr.ENCODING_DXT5 : cmpntr.ENCODING_DXT1
-      });
+      if (image.compressor == CMP_PROFILE_VLQ) {
+        compress = dxt.compress(Buffer.from(mipmap.buffer), width, height, compression_flags);
+      } else {
+        compress = cmpntr.compress(mipmap, width, height, cmp_opts);
+      }
     } catch (err) {
       console.log(err);
       return cb({message: 'compression failed', detail: 'DXT compress failed.'});

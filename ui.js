@@ -192,6 +192,11 @@ function run_queue() {
     tpc.settings('txi', $('.txi_data').val());
     tpc.settings('compression', pixel_format);
     tpc.settings('alphaBlending', alphaBlending);
+    for (let profile of ['super_fast', 'fast', 'normal', 'slow', 'ultra']) {
+      if ($('.compress-menu a.cmp_profile.enabled').hasClass(profile)) {
+        tpc.settings('compressor', profile);
+      }
+    }
     tpc.export_tpc(
       outfile, texture,
       (err, stat) => {
@@ -386,6 +391,13 @@ $('.settings-menu a.txi_use_file').on('click', (ev) => {
     $('button.loader_txi').removeAttr('disabled');
   }
   ev.preventDefault();
+  ev.stopPropagation();
+});
+$('.compress-menu a.cmp_profile').on('click', (ev) => {
+  // compression profile
+  // modal group, disable all, enable specific one
+  $('.compress-menu a.cmp_profile').removeClass('enabled');
+  $(ev.currentTarget).addClass('enabled');
   ev.stopPropagation();
 });
 
