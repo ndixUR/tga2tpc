@@ -884,6 +884,13 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
     cmp_opts.CompressionSpeed = cmpntr.CMP_Speed_Normal;
     cmp_opts['3DRefinement'] = false;
     cmp_opts.RefinementSteps = 1;
+    // provide a progress feedback function to the compressor
+    cmp_opts.progress = (p) => {
+      progress(
+        (p * (progress_range[1] - progress_range[0])) + progress_range[0],
+        'compress', layer
+      );
+    }
     // profile-based settings for compressonator
     // note: VLQ profile uses old libsquish compressor
     switch(image.compressor) {

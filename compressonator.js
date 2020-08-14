@@ -127,6 +127,8 @@ options.m_fChannelWeights[0] = m_fBaseChannelWeights[0];
 options.m_fChannelWeights[1] = m_fBaseChannelWeights[1];
 options.m_fChannelWeights[2] = m_fBaseChannelWeights[2];
 
+let feedback = null;
+
 if (!module) var module = {};
 module.exports = {
     compress,
@@ -178,6 +180,10 @@ function SetParameter(opts) {
          opts.encoding == ENCODING_DXT5)) {
         options.encoding = parseInt(opts.encoding);
     }
+    if (opts.progress) {
+        // progress feedback handling function
+        feedback = opts.progress;
+    }
     //console.log(options);
     return options;
 }
@@ -190,8 +196,16 @@ function compress(buffer, width, height, opts) {
     // configure compressor
     SetParameter(opts);
 
+    // need to delete progress function if provided to avoid copying it
+    if (opts.progress) {
+      delete opts.progress;
+    }
+
     const block_size = opts.encoding == ENCODING_DXT5 ? 16 : 8
     const output = new Uint8ClampedArray(dwBlocksY * dwBlocksX * block_size);
+    const blocks_total = output.length / 8; // DXT5 represented as 2 blocks
+    const blocks_fbk_step = Math.ceil(0.01 * blocks_total);
+    let blocks_done = 0;
     for (var j = 0; j < dwBlocksY; j++) {
         for (var i = 0; i < dwBlocksX; i++) {
             const block_idx = i + (j * dwBlocksX);
@@ -212,6 +226,10 @@ function compress(buffer, width, height, opts) {
                 ]);
                 ablock = CompressAlphaBlock(alpha_buffer);
                 output.set(ablock, alpha_block_offset);
+                blocks_done = blocks_done + 1;
+                if (feedback && !(blocks_done % blocks_fbk_step)) {
+                  feedback(blocks_done / blocks_total);
+                }
             }
             const cblock = CompressRGBBlock(
                 new Uint32Array(block_buffer.buffer),
@@ -221,6 +239,10 @@ function compress(buffer, width, height, opts) {
                 false, 0.0 // DXT1 Alpha settings, unused
             );
             output.set(cblock, rgb_block_offset);
+            blocks_done = blocks_done + 1;
+            if (feedback && !(blocks_done % blocks_fbk_step)) {
+                feedback(blocks_done / blocks_total);
+            }
         }
     }
     return output;
