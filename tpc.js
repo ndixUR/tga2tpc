@@ -16,7 +16,7 @@
 
 const fs = require('fs');
 const dxt = require('dxt-js');
-const cmpntr = require('./compressonator');
+const cmpntr = require(require('path').normalize(__dirname + '/compressonator.js'));
 const EventEmitter = require('events');
 
 //XXX UI STUFF
