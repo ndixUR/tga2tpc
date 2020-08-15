@@ -188,7 +188,7 @@ function SetParameter(opts) {
     return options;
 }
 
-function compress(buffer, width, height, opts) {
+async function compress(buffer, width, height, opts) {
     opts = opts || {};
     const dwBlocksX = Math.ceil(width / 4);
     const dwBlocksY = Math.ceil(height / 4);

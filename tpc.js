@@ -708,7 +708,7 @@ function getImageData(data, width, x, y, w, h) {
   return imageData;
 }
 
-function write_mipmap(stream, image, width, height, size, scale, filepos, layer, cb) {
+async function write_mipmap(stream, image, width, height, size, scale, filepos, layer, cb) {
   if (width < 1 && height < 1) { // || (image.width / width) > image.mipMapCount) {
     // we write mipmaps until we reach 1 pixel in both dimensions
     // the next/final step is writing the txi data
@@ -914,7 +914,7 @@ function write_mipmap(stream, image, width, height, size, scale, filepos, layer,
       if (image.compressor == CMP_PROFILE_VLQ) {
         compress = dxt.compress(Buffer.from(mipmap.buffer), width, height, compression_flags);
       } else {
-        compress = cmpntr.compress(mipmap, width, height, cmp_opts);
+        compress = await cmpntr.compress(mipmap, width, height, cmp_opts);
       }
     } catch (err) {
       console.log(err);
