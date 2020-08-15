@@ -132,6 +132,8 @@ let feedback = null;
 if (!module) var module = {};
 module.exports = {
     compress,
+    pool_init,
+    pool_cleanup,
     ENCODING_DXT1,
     ENCODING_DXT5,
     CMP_Speed_Normal,
@@ -188,6 +190,90 @@ function SetParameter(opts) {
     return options;
 }
 
+// Web Worker implementation:
+const worker_queue_max = 512; // 512 * 8b = 4kb
+let worker_message_queue = [];
+onmessage = function(e) {
+    if (!e || !e.data || !e.data.type) {
+        return;
+    }
+    // set encoding options if provided
+    if (e.data.options) {
+        SetParameter(e.data.options);
+    }
+    // perform operation based on type
+    switch (e.data.type) {
+        case 'rgb':
+            //console.log('do block ${e.data.offset}');
+            var cblock = CompressRGBBlock(
+            //CompressRGBBlock(
+                //new Uint32Array(block_buffer.buffer),
+                new Uint32Array(e.data.block.buffer),
+                //output.subarray(rgb_block_offset, rgb_block_offset + 8),
+                CalculateColourWeightings(e.data.block),
+                options.encoding == ENCODING_DXT1, // DXT1?
+                false, 0.0 // DXT1 Alpha settings
+            );
+            worker_message_queue.push({
+                offset: e.data.offset,
+                block_data: cblock
+            });
+            if (e.data['final'] ||
+                worker_message_queue.length == worker_queue_max) {
+              postMessage({
+                blocks: worker_message_queue
+              });
+              worker_message_queue = [];
+            }
+            break;
+        case 'alpha':
+            //console.log('do block ${e.data.offset}');
+            var ablock = CompressAlphaBlock(e.data.block);
+            worker_message_queue.push({
+                offset: e.data.offset,
+                block_data: ablock
+            });
+            if (e.data['final'] ||
+                worker_message_queue.length == worker_queue_max) {
+              postMessage({
+                blocks: worker_message_queue
+              });
+              worker_message_queue = [];
+            }
+            break;
+    }
+}
+
+// Main process Web Worker support methods:
+const workers = [];
+function pool_init() {
+    const num_proc = Math.max(1, require('os').cpus().length - 1);
+    for (let i = 0; i < num_proc; i++) {
+        const w = new Worker(require('path').normalize(__dirname + '/compressonator.js'));
+        w.resolvers = {};
+        w.onerror = function(e) {
+            console.log(e);
+            throw(e);
+        }
+        w.postMessage({ type: 'options', options });
+        workers.push(w);
+    }
+}
+
+function pool_cleanup() {
+    while (workers.length) {
+        const w = workers.pop();
+        w.terminate();
+    }
+}
+
+async function blockToWorker(wkr, msg) {
+    return new Promise((resolve, reject) => {
+        wkr.postMessage(msg);
+        wkr.resolvers[msg.offset] = resolve;
+    });
+}
+
 async function compress(buffer, width, height, opts) {
     opts = opts || {};
     const dwBlocksX = Math.ceil(width / 4);
@@ -203,9 +289,51 @@ async function compress(buffer, width, height, opts) {
 
     const block_size = opts.encoding == ENCODING_DXT5 ? 16 : 8
     const output = new Uint8ClampedArray(dwBlocksY * dwBlocksX * block_size);
+
+    // progress-related info
     const blocks_total = output.length / 8; // DXT5 represented as 2 blocks
     const blocks_fbk_step = Math.ceil(0.01 * blocks_total);
     let blocks_done = 0;
+
+    // settings governing use of multi-process web workers for compression
+    const num_proc = Math.max(1, require('os').cpus().length - 1);
+    const use_workers = num_proc > 1;
+    // master process waits after this many, processing results
+    const block_batch_wait = 1000;
+
+    // set up web workers, if using
+    let do_pool_cleanup = false;
+    if (use_workers) {
+        if (!workers.length) {
+            // uninitialized pool, start workers now
+            pool_init();
+            do_pool_cleanup = true;
+        }
+        for (const w of workers) {
+            // handler for messages back from the worker process
+            // add the result blocks to the output, resolve promises
+            w.onmessage = function(e) {
+                if (e.data && e.data.blocks) {
+                    for (const block of e.data.blocks) {
+                        output.set(block.block_data, block.offset);
+                        blocks_done = blocks_done + 1;
+                        if (feedback && !(blocks_done % blocks_fbk_step)) {
+                            feedback(blocks_done / blocks_total);
+                        }
+                        if (!(blocks_done % 100000)) {
+                            console.log(`${blocks_done} blocks done`);
+                        }
+                        //console.log(w.resolvers);
+                        w.resolvers[block.offset]();
+                    }
+                }
+            }
+            // set compression options on each worker
+            w.postMessage({ type: 'options', options: opts });
+        }
+        var encPromises = [];
+    }
+
     for (var j = 0; j < dwBlocksY; j++) {
         for (var i = 0; i < dwBlocksX; i++) {
             const block_idx = i + (j * dwBlocksX);
@@ -214,6 +342,23 @@ async function compress(buffer, width, height, opts) {
             const rgb_block_offset = compressed_block_offset + (
                 opts.encoding == ENCODING_DXT5 ? block_size / 2 : 0
             );
+            const worker_idx = block_idx % workers.length;
+            const worker_final = (
+                // the last block that will be sent to a worker
+                (block_idx + workers.length >= output.length / block_size) ||
+                // using block batching
+                (block_batch_wait &&
+                // last block sent to a worker before a batch break
+                 (Math.floor((block_idx + workers.length) / block_batch_wait) !=
+                  Math.floor(block_idx / block_batch_wait)) ||
+                // block_idx == 0
+                 (!(block_idx % block_batch_wait)))
+            );
+            /*
+            if (worker_final) {
+              console.log(`${block_idx}/${output.length / block_size} is final for worker ${worker_idx}`);
+            }
+            */
             const block_buffer = ReadBlockRGBA(i * 4, j * 4, 4, 4, buffer, width, height);
             if (opts.encoding == ENCODING_DXT5) {
                 // construct block of alpha bytes manually
@@ -224,27 +369,69 @@ async function compress(buffer, width, height, opts) {
                     block_buffer[35], block_buffer[39], block_buffer[43], block_buffer[47],
                     block_buffer[51], block_buffer[55], block_buffer[59], block_buffer[63]
                 ]);
-                ablock = CompressAlphaBlock(alpha_buffer);
-                output.set(ablock, alpha_block_offset);
-                blocks_done = blocks_done + 1;
-                if (feedback && !(blocks_done % blocks_fbk_step)) {
-                  feedback(blocks_done / blocks_total);
+                if (use_workers) {
+                    encPromises.push(blockToWorker(workers[worker_idx], {
+                        type: 'alpha',
+                        block: alpha_buffer,
+                        offset: alpha_block_offset,
+                        'final': worker_final,
+                    }));
+                } else {
+                    ablock = CompressAlphaBlock(alpha_buffer);
+                    output.set(ablock, alpha_block_offset);
+                    blocks_done = blocks_done + 1;
+                    if (feedback && !(blocks_done % blocks_fbk_step)) {
+                      feedback(blocks_done / blocks_total);
+                    }
                 }
             }
-            const cblock = CompressRGBBlock(
-                new Uint32Array(block_buffer.buffer),
-                //output.subarray(rgb_block_offset, rgb_block_offset + 8),
-                CalculateColourWeightings(block_buffer),
-                opts.encoding == ENCODING_DXT1, // DXT1?
-                false, 0.0 // DXT1 Alpha settings, unused
-            );
-            output.set(cblock, rgb_block_offset);
-            blocks_done = blocks_done + 1;
-            if (feedback && !(blocks_done % blocks_fbk_step)) {
-                feedback(blocks_done / blocks_total);
+            if (use_workers) {
+                encPromises.push(blockToWorker(workers[worker_idx], {
+                    type: 'rgb',
+                    block: block_buffer,
+                    offset: rgb_block_offset,
+                    'final': worker_final,
+                }));
+                if (block_batch_wait && !(block_idx % block_batch_wait)) {
+                    //console.log(`wait for ${encPromises.length} to finish...`);
+                    if (Promise.allSettled) {
+                        await Promise.allSettled(encPromises);
+                    } else {
+                        await Promise.all(encPromises);
+                    }
+                    //console.log(`finished.`);
+                    encPromises = [];
+                }
+            } else {
+                const cblock = CompressRGBBlock(
+                    new Uint32Array(block_buffer.buffer),
+                    //output.subarray(rgb_block_offset, rgb_block_offset + 8),
+                    CalculateColourWeightings(block_buffer),
+                    opts.encoding == ENCODING_DXT1, // DXT1?
+                    false, 0.0 // DXT1 Alpha settings, unused
+                );
+                output.set(cblock, rgb_block_offset);
+                blocks_done = blocks_done + 1;
+                if (feedback && !(blocks_done % blocks_fbk_step)) {
+                    feedback(blocks_done / blocks_total);
+                }
             }
         }
     }
+
+    // if using workers, wait for all results before continuing
+    if (use_workers) {
+        if (Promise.allSettled) {
+            await Promise.allSettled(encPromises);
+        } else {
+            await Promise.all(encPromises);
+        }
+    }
+
+    // only if we had to initialize the worker pool, clean it up
+    // (caller can use pool init & cleanup to manage pool more effectively)
+    if (do_pool_cleanup) pool_cleanup();
+
     return output;
 }
 

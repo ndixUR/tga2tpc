@@ -342,6 +342,11 @@ function prepare(texture) {
       break;
   }
 
+  // if using a compressonator profile, initialize worker pool now
+  if (image.compressor != CMP_PROFILE_VLQ) {
+    cmpntr.pool_init();
+  }
+
   // n power of 2? n && (n & (n - 1)) === 0;
   //console.log(image);
   return image;
@@ -968,6 +973,7 @@ function write_txi(stream, image, cb) {
     progress(1.0);
     stream.end();
     cleanImage();
+    cmpntr.pool_cleanup();
     if (cb) return cb(null, image_status);
     return;
   }
@@ -982,6 +988,7 @@ function write_txi(stream, image, cb) {
     // final success, callback
     stream.end();
     cleanImage();
+    cmpntr.pool_cleanup();
     if (cb) return cb(null, image_status);
     return;
   });
