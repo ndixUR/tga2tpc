@@ -252,8 +252,8 @@ function prepare(texture) {
       image.dataSize = 0;
       while (w >= 1 || h >= 1) {
         image.dataSize += getDataSize(image.formatRaw, w, h);
-        w /= 2;
-        h /= 2;
+        w = Math.floor(w / 2);
+        h = Math.floor(h / 2);
       }
       //if (image.formatRaw == kPixelFormatDXT1) {
       image.dataSize *= image.layerCount;
