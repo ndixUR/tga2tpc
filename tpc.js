@@ -384,7 +384,7 @@ function progress(nprog, op, layer) {
     }
     cur_prog = cur_prog +
       // finished layers
-      ((layer - 1) * layer_factor) +
+      ((layer - 1) * phase_map[op] * layer_factor) +
       // current layer
       (nprog * phase_map[op] * layer_factor);
   }
@@ -655,7 +655,7 @@ async function generateDetailLevels(layers) {
       Math.log(Math.max(layer.width, layer.height)) / Math.log(2)
     ) + 1;
     for (let mip_idx = 1; mip_idx < num_detail_levels; mip_idx++) {
-      await generateDetailLevel(layer, layer_idx, mip_idx);
+      await generateDetailLevel(layer, parseInt(layer_idx), mip_idx);
     }
   }
 }
