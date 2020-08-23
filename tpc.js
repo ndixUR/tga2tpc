@@ -708,7 +708,7 @@ function getImageData(data, width, x, y, w, h) {
     const row_begin = (x + (i * width)) * 4;
     const row_end = row_begin + (w * 4);
     imageData.set(data.subarray(row_begin, row_end), imgData_offset);
-    imgData_offset += row_end - row_begin;
+    imgData_offset = imgData_offset + (row_end - row_begin);
   }
   return imageData;
 }
